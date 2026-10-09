@@ -16,12 +16,13 @@ import type {
   Device,
   DeviceKind,
   Location,
+  OrderItem,
   ServiceRequest,
   Technician,
   WorkOrder,
 } from './types';
 
-export const DEMO_STATE_VERSION = 3;
+export const DEMO_STATE_VERSION = 4;
 
 /** Uređaj na kojem se vodi vodič kroz demo. */
 export const GUIDE_DEVICE_ID = 'TP-001';
@@ -96,10 +97,10 @@ const deviceSeeds: DeviceSeed[] = [
   { id: 'KL-009', name: 'Kasetna klima — sala za sastanke, drugi sprat, istočno krilo zgrade', kind: 'klima', typeLabel: CASSETTE, locationId: 'l7', intervalMonths: 12, nextIn: 180 },
   { id: 'KL-010', name: 'Klima — otvoreni ured', kind: 'klima', typeLabel: SPLIT, locationId: 'l7', intervalMonths: 12, nextIn: 0 },
   { id: 'KL-011', name: 'Klima — spavaća soba', kind: 'klima', typeLabel: SPLIT, locationId: 'l8', intervalMonths: 12, completedAgo: 40 },
-  { id: 'KL-012', name: 'Klima — potkrovlje', kind: 'klima', typeLabel: SPLIT, locationId: 'l1', intervalMonths: 12, nextIn: 120 },
+  { id: 'KL-012', name: 'Klima — potkrovlje', kind: 'klima', typeLabel: SPLIT, locationId: 'l1', intervalMonths: 12, nextIn: 40 },
   { id: 'KL-013', name: 'Klima — kancelarija skladišta', kind: 'klima', typeLabel: SPLIT, locationId: 'l3', intervalMonths: 12, nextIn: 45 },
   { id: 'KL-014', name: 'Klima — skladišni prostor', kind: 'klima', typeLabel: DUCT, locationId: 'l3', intervalMonths: 12, nextIn: 6 },
-  { id: 'KL-015', name: 'Klima — spavaća soba', kind: 'klima', typeLabel: SPLIT, locationId: 'l4', intervalMonths: 12, nextIn: 260 },
+  { id: 'KL-015', name: 'Klima — dnevni boravak', kind: 'klima', typeLabel: SPLIT, locationId: 'l1', intervalMonths: 12, nextIn: 25 },
   { id: 'KL-016', name: 'Klima — dječija soba', kind: 'klima', typeLabel: SPLIT, locationId: 'l8', intervalMonths: 12, installedMonthsAgo: 2 },
 ];
 
@@ -152,45 +153,73 @@ function answered(kind: DeviceKind, notes: Record<string, string>, attention: st
   }));
 }
 
-function emptyOrder(partial: Partial<WorkOrder> & Pick<WorkOrder, 'id' | 'deviceId' | 'date' | 'start'>, kind: DeviceKind): WorkOrder {
+interface OrderSeed extends Partial<Omit<WorkOrder, 'items'>> {
+  id: string;
+  date: CivilDate;
+  start: string;
+  /** Uređaji u posjeti; prvi je glavni. */
+  devices: string[];
+  /** Za završene primjere: popunjene kontrolne liste po uređaju. */
+  filled?: Record<string, { checklist: ChecklistEntry[]; note?: string }>;
+}
+
+function itemFor(device: Device, filled?: { checklist: ChecklistEntry[]; note?: string }, at?: number): OrderItem {
   return {
-    requestId: null,
-    reason: 'Redovni servis prema intervalu (DEMO interval).',
-    category: 'Redovni servis',
-    durationMin: 90,
-    technicianId: null,
-    status: 'planiran',
-    checklist: checklistFor(kind),
-    notes: '',
+    deviceId: device.id,
+    checklist: filled?.checklist ?? checklistFor(device.kind),
+    note: filled?.note ?? '',
     photos: [],
-    timeSpentMin: null,
-    materials: '',
-    recommendation: '',
-    completedOn: null,
-    nextServiceOn: null,
-    customerAck: '',
-    ...partial,
+    identifiedAt: filled ? (at ?? null) : null,
+    identifiedBy: filled ? 'qr' : null,
+    done: Boolean(filled),
   };
 }
 
 export function createInitialState(today: CivilDate, now: number = Date.now()): DemoState {
   const devices = buildDevices(today);
   const nextOf = (id: string) => devices.find((d) => d.id === id)?.nextServiceOn ?? null;
+  const mk = ({ devices: ids, filled, ...o }: OrderSeed): WorkOrder => {
+    const list = ids.map((id) => devices.find((d) => d.id === id)!);
+    const at = Date.parse(`${o.date}T${o.start}:00+02:00`) + 10 * 60_000;
+    return {
+      requestId: null,
+      reason: 'Redovni servis prema intervalu (DEMO interval).',
+      category: 'Redovni servis',
+      durationMin: 90,
+      technicianId: null,
+      status: 'planiran',
+      notes: '',
+      startedAt: null,
+      timeSpentMin: null,
+      materials: '',
+      recommendation: '',
+      completedOn: null,
+      nextServiceOn: null,
+      customerAck: '',
+      ...o,
+      deviceId: list[0]!.id,
+      locationId: list[0]!.locationId,
+      items: list.map((d) => itemFor(d, filled?.[d.id], at)),
+    };
+  };
 
   const workOrders: WorkOrder[] = [
-    emptyOrder(
-      {
+    mk({
         id: 'NAL-0101',
-        deviceId: 'TP-003',
+        devices: ['TP-003'],
         date: addDays(today, -25),
         start: '09:00',
         technicianId: 't1',
         status: 'zavrsen',
-        checklist: answered('pumpa', {
-          alarmi: 'Na upravljaču nije bilo prikazanih poruka u trenutku posjete (primjer zapisa).',
-          opazanja: 'Kupac nije prijavio smetnje u radu.',
-          rezultat: 'Uređaj pregledan prema demo obrascu.',
-        }),
+        filled: {
+          'TP-003': {
+            checklist: answered('pumpa', {
+              alarmi: 'Na upravljaču nije bilo prikazanih poruka u trenutku posjete (primjer zapisa).',
+              opazanja: 'Kupac nije prijavio smetnje u radu.',
+              rezultat: 'Uređaj pregledan prema demo obrascu.',
+            }),
+          },
+        },
         notes: 'Pregled obavljen prema dogovoru s kupcem. Pristup vanjskoj jedinici uredan.',
         timeSpentMin: 75,
         materials: 'Bez utroška materijala (primjer).',
@@ -198,26 +227,27 @@ export function createInitialState(today: CivilDate, now: number = Date.now()): 
         completedOn: addDays(today, -25),
         nextServiceOn: nextOf('TP-003'),
         customerAck: 'Porodica Testić (primjer potvrde)',
-      },
-      'pumpa',
-    ),
-    emptyOrder(
-      {
+      }),
+    mk({
         id: 'NAL-0102',
-        deviceId: 'KL-011',
+        devices: ['KL-011'],
         date: addDays(today, -40),
         start: '13:00',
         technicianId: 't2',
         status: 'zavrsen',
-        checklist: answered(
-          'klima',
-          {
-            filter: 'Filter zaprljan; očišćen (primjer zapisa).',
-            opazanja: 'Kupac je naveo blag miris pri pokretanju.',
-            rezultat: 'Nakon čišćenja kupac nije primijetio miris.',
+        filled: {
+          'KL-011': {
+            checklist: answered(
+              'klima',
+              {
+                filter: 'Filter zaprljan; očišćen (primjer zapisa).',
+                opazanja: 'Kupac je naveo blag miris pri pokretanju.',
+                rezultat: 'Nakon čišćenja kupac nije primijetio miris.',
+              },
+              ['filter'],
+            ),
           },
-          ['filter'],
-        ),
+        },
         notes: 'Kupcu objašnjeno kako sam provjerava filter između servisa.',
         timeSpentMin: 60,
         materials: 'Sredstvo za čišćenje (primjer stavke).',
@@ -225,21 +255,22 @@ export function createInitialState(today: CivilDate, now: number = Date.now()): 
         completedOn: addDays(today, -40),
         nextServiceOn: nextOf('KL-011'),
         customerAck: 'Porodica Testić (primjer potvrde)',
-      },
-      'klima',
-    ),
-    emptyOrder(
-      {
+      }),
+    mk({
         id: 'NAL-0103',
-        deviceId: 'KL-004',
+        devices: ['KL-004'],
         date: addDays(today, -12),
         start: '10:30',
         technicianId: 't2',
         status: 'zavrsen',
-        checklist: answered('klima', {
-          opazanja: 'Bez posebnih opažanja.',
-          rezultat: 'Uređaj pregledan prema demo obrascu.',
-        }),
+        filled: {
+          'KL-004': {
+            checklist: answered('klima', {
+              opazanja: 'Bez posebnih opažanja.',
+              rezultat: 'Uređaj pregledan prema demo obrascu.',
+            }),
+          },
+        },
         notes: 'Redovan pregled. Kupac zadovoljan radom uređaja.',
         timeSpentMin: 55,
         materials: 'Bez utroška materijala (primjer).',
@@ -247,17 +278,15 @@ export function createInitialState(today: CivilDate, now: number = Date.now()): 
         completedOn: addDays(today, -12),
         nextServiceOn: nextOf('KL-004'),
         customerAck: 'Porodica Primjerović (primjer potvrde)',
-      },
-      'klima',
-    ),
-    emptyOrder({ id: 'NAL-0110', deviceId: 'TP-004', date: today, start: '09:00', technicianId: 't2' }, 'pumpa'),
-    emptyOrder({ id: 'NAL-0111', deviceId: 'KL-002', date: today, start: '11:00', technicianId: 't1', durationMin: 60, reason: 'Redovni servis prema intervalu od 6 mjeseci (DEMO interval).' }, 'klima'),
-    emptyOrder({ id: 'NAL-0112', deviceId: 'KL-007', date: today, start: '14:00', technicianId: 't1', durationMin: 60 }, 'klima'),
-    emptyOrder({ id: 'NAL-0113', deviceId: 'KL-010', date: today, start: '13:00', technicianId: 't2', durationMin: 60 }, 'klima'),
-    emptyOrder({ id: 'NAL-0114', deviceId: 'TP-007', date: addDays(today, 2), start: '10:00', technicianId: 't1' }, 'pumpa'),
-    emptyOrder({ id: 'NAL-0115', deviceId: 'KL-006', date: addDays(today, 3), start: '09:00', technicianId: 't2', requestId: 'ZHT-030', durationMin: 60 }, 'klima'),
-    emptyOrder({ id: 'NAL-0116', deviceId: 'KL-014', date: addDays(today, 4), start: '12:00', technicianId: null, durationMin: 60 }, 'klima'),
-    emptyOrder({ id: 'NAL-0117', deviceId: 'KL-005', date: addDays(today, 5), start: '10:00', technicianId: 't2', status: 'otkazan', reason: 'Redovni servis — kupac je zamolio novi termin (primjer).' }, 'klima'),
+      }),
+    mk({ id: 'NAL-0110', devices: ['TP-004'], date: today, start: '09:00', technicianId: 't2' }),
+    mk({ id: 'NAL-0111', devices: ['KL-002', 'KL-001'], date: today, start: '11:00', technicianId: 't1', durationMin: 90, reason: 'Redovni servis KL-002 (interval 6 mjeseci, DEMO) i pregled KL-001 u istoj posjeti.' }),
+    mk({ id: 'NAL-0112', devices: ['KL-008', 'KL-007'], date: today, start: '14:00', technicianId: 't1', durationMin: 90, reason: 'Redovni servis dva uređaja u depandansi (jedan je zakasnio).' }),
+    mk({ id: 'NAL-0113', devices: ['KL-010'], date: today, start: '13:00', technicianId: 't2', durationMin: 60 }),
+    mk({ id: 'NAL-0114', devices: ['TP-007'], date: addDays(today, 2), start: '10:00', technicianId: 't1' }),
+    mk({ id: 'NAL-0115', devices: ['KL-006'], date: addDays(today, 3), start: '09:00', technicianId: 't2', requestId: 'ZHT-030', durationMin: 60 }),
+    mk({ id: 'NAL-0116', devices: ['KL-014', 'KL-013'], date: addDays(today, 4), start: '12:00', technicianId: null, durationMin: 90 }),
+    mk({ id: 'NAL-0117', devices: ['KL-005'], date: addDays(today, 5), start: '10:00', technicianId: 't2', status: 'otkazan', reason: 'Redovni servis — kupac je zamolio novi termin (primjer).' }),
   ];
 
   const historyFor: Record<string, Device['history']> = {
@@ -274,7 +303,7 @@ export function createInitialState(today: CivilDate, now: number = Date.now()): 
   for (const d of devices) {
     const extra = historyFor[d.id];
     if (extra) d.history = extra;
-    const done = workOrders.find((w) => w.deviceId === d.id && w.status === 'zavrsen');
+    const done = workOrders.find((w) => w.items.some((i) => i.deviceId === d.id) && w.status === 'zavrsen');
     if (done && done.completedOn) {
       d.history = [
         { date: done.completedOn, title: 'Redovni servis', technicianId: done.technicianId ?? 't1', summary: done.recommendation, workOrderId: done.id },
@@ -302,6 +331,8 @@ export function createInitialState(today: CivilDate, now: number = Date.now()): 
       note: 'Uređaj ne grije kao ranije, na upravljaču se pojavila poruka (primjer opisa).',
       errorCode: '',
       photo: null,
+      symptom: 'Ne grije',
+      urgent: true,
       status: 'na_cekanju',
       createdAt: now - 2 * hour,
       fromSimulation: false,
@@ -318,6 +349,8 @@ export function createInitialState(today: CivilDate, now: number = Date.now()): 
       note: 'Molimo termin prije početka radnog vremena (primjer).',
       errorCode: '',
       photo: null,
+      symptom: '',
+      urgent: false,
       status: 'na_cekanju',
       createdAt: now - 20 * hour,
       fromSimulation: false,
@@ -334,6 +367,8 @@ export function createInitialState(today: CivilDate, now: number = Date.now()): 
       note: '',
       errorCode: '',
       photo: null,
+      symptom: '',
+      urgent: false,
       status: 'potvrdjen',
       createdAt: now - 46 * hour,
       fromSimulation: false,
@@ -350,6 +385,8 @@ export function createInitialState(today: CivilDate, now: number = Date.now()): 
       note: 'Termin više nije potreban (primjer).',
       errorCode: '',
       photo: null,
+      symptom: '',
+      urgent: false,
       status: 'odbijen',
       createdAt: now - 70 * hour,
       fromSimulation: false,

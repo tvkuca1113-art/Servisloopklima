@@ -9,14 +9,14 @@ import { brand } from '@/config/brand';
 const BENEFITS = [
   { icon: Thermometer, title: 'Uređaji na jednom mjestu', text: 'Historija i naredni servis za svaku klimu i toplotnu pumpu.' },
   { icon: QrCode, title: 'QR na uređaju', text: 'Primjer zakazivanja i prijave kvara bez prijave i aplikacije.' },
-  { icon: ClipboardCheck, title: 'Jasan radni nalog', text: 'Šta serviser vidi na telefonu i kako izgleda zapisnik.' },
+  { icon: ClipboardCheck, title: 'Jasan radni nalog', text: 'Serviser na objektu skenira svaki uređaj — nema zabune ni unosa na pogrešan uređaj.' },
 ];
 
 const STEPS = [
   { icon: Thermometer, title: 'Uređaj', text: 'Vlasnik otvara karticu uređaja s historijom i QR kodom.' },
-  { icon: Smartphone, title: 'Kupac', text: 'Kupac skenira QR i šalje primjer zahtjeva za servis.' },
-  { icon: CalendarCheck, title: 'Dodjela', text: 'Vlasnik potvrđuje zahtjev i dodjeljuje servisera i termin.' },
-  { icon: ClipboardCheck, title: 'Servis', text: 'Serviser na telefonu prolazi kontrolnu listu i završava nalog.' },
+  { icon: Smartphone, title: 'Kupac', text: 'Kupac skenira QR na uređaju i jednim dodirom prijavi kvar ili zakaže servis.' },
+  { icon: CalendarCheck, title: 'Dodjela', text: 'Vlasnik potvrđuje zahtjev, dodaje ostale uređaje na objektu i bira servisera.' },
+  { icon: ClipboardCheck, title: 'Servis', text: 'Na objektu serviser skenira QR svakog uređaja, označi „Sve uredno” ili izuzetke.' },
   { icon: FileText, title: 'Izvještaj', text: 'Nastaje primjer izvještaja i datum sljedećeg servisa.' },
 ];
 

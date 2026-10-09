@@ -30,20 +30,22 @@ export function useGuideSteps(): { steps: GuideStep[]; current: number } {
   const steps: GuideStep[] = [
     { title: 'Otvori primjer uređaja', hint: 'TP-001 · Demo kuća Tuzla: historija, interval i QR kod.', href: `/demo/uredaji/${GUIDE_DEVICE_ID}`, done: g.visitedDevice },
     { title: 'Pogledaj QR i prikaz kupca', hint: 'Šta kupac vidi kada skenira QR na uređaju.', href: `/demo/kupac/${GUIDE_DEVICE_ID}`, done: g.visitedCustomer },
-    { title: 'Simuliraj zahtjev za servis', hint: 'Popunite primjer zakazivanja kao kupac.', href: `/demo/kupac/${GUIDE_DEVICE_ID}?forma=servis`, done: Boolean(request) },
+    { title: 'Kao kupac prijavi kvar ili zakaži servis', hint: 'Stranica koju kupac dobije skeniranjem QR koda.', href: `/demo/kupac/${GUIDE_DEVICE_ID}`, done: Boolean(request) },
     {
       title: 'Kao vlasnik dodijeli servisera',
-      hint: 'Potvrdite zahtjev i odaberite servisera i termin.',
+      hint: 'Potvrdite zahtjev; ostali uređaji na objektu mogu u istu posjetu.',
       href: request ? `/demo/zahtjevi?istakni=${request.id}` : '/demo/zahtjevi',
       done: assigned,
     },
     {
-      title: 'Kao serviser završi primjer i pogledaj izvještaj',
-      hint: 'Kontrolna lista, bilješka i primjer izvještaja.',
+      title: 'Kao serviser skeniraj uređaje, završi i pogledaj izvještaj',
+      hint: 'Na objektu: QR svakog uređaja → „Sve uredno” → završetak.',
       href: order ? (completed ? `/demo/izvjestaji/${order.id}` : `/demo/serviser/nalog/${order.id}`) : '/demo/serviser',
       done: completed && g.viewedReport,
     },
   ];
+  // Korak koji je preskočen, a kasniji je urađen, računa se kao prođen.
+  for (let i = steps.length - 2; i >= 0; i--) if (steps[i + 1]!.done) steps[i]!.done = true;
   const current = steps.findIndex((s) => !s.done);
   return { steps, current: current === -1 ? steps.length : current };
 }
@@ -137,11 +139,12 @@ export function GuidePanel() {
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="pointer-events-auto ml-auto flex min-h-11 items-center gap-2 rounded-full border border-line bg-nav px-4 text-sm font-semibold text-white shadow-[var(--shadow-pop)] hover:bg-nav-2"
+          className="pointer-events-auto ml-auto flex min-h-11 items-center gap-2 rounded-full border border-line bg-nav px-3.5 text-sm font-semibold text-white shadow-[var(--shadow-pop)] hover:bg-nav-2"
           aria-expanded="false"
         >
           <Compass className="size-[18px]" aria-hidden />
-          Vodič · {finished ? 'završen' : `korak ${current + 1} od ${steps.length}`}
+          <span className="sm:hidden">{finished ? 'Vodič ✓' : `Vodič ${current + 1}/${steps.length}`}</span>
+          <span className="hidden sm:inline">Vodič · {finished ? 'završen' : `korak ${current + 1} od ${steps.length}`}</span>
         </button>
       )}
     </aside>
@@ -189,11 +192,11 @@ export function GuideInline() {
           </button>
         </div>
       </div>
-      <ol className="grid gap-2 p-3 sm:grid-cols-2 lg:grid-cols-5">
+      <ol className={cn('grid gap-2 p-3 lg:grid-cols-5', finished && 'hidden lg:grid')}>
         {steps.map((s, i) => {
           const active = i === current;
           return (
-            <li key={s.title} className={cn('flex gap-3 rounded-xl border px-3 py-3 lg:flex-col lg:gap-2', active ? 'border-primary/30 bg-primary-soft' : 'border-line')}>
+            <li key={s.title} className={cn('gap-3 rounded-xl border px-3 py-3 lg:flex lg:flex-col lg:gap-2', active ? 'flex border-primary/30 bg-primary-soft' : 'hidden border-line')}>
               <span
                 className={cn(
                   'inline-flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold',

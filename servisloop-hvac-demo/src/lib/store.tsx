@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import { checklistFor } from './checklists';
 import { addMonths, todayInZone, type CivilDate } from './dates';
 import { createInitialState, DEMO_STATE_VERSION } from './demo-data';
-import type { DemoState, Device, GuideState, RequestKind, ServiceRequest, WorkOrder } from './types';
+import type { DemoState, Device, GuideState, OrderItem, RequestKind, ServiceRequest, WorkOrder } from './types';
 
 /**
  * Lokalno stanje probe. Živi samo u ovom browser tabu (sessionStorage), pa vlasnik,
@@ -24,6 +24,8 @@ type Action =
   | { type: 'rejectRequest'; requestId: string }
   | { type: 'addOrder'; order: WorkOrder }
   | { type: 'updateOrder'; id: string; patch: Partial<WorkOrder> }
+  | { type: 'updateItem'; id: string; deviceId: string; patch: Partial<OrderItem> }
+  | { type: 'addItem'; id: string; item: OrderItem }
   | { type: 'completeOrder'; id: string }
   | { type: 'guide'; patch: Partial<GuideState> };
 
@@ -97,31 +99,55 @@ function reducer(state: DemoState, action: Action): DemoState {
       }
       return { ...state, activity, workOrders: state.workOrders.map((w) => (w.id === action.id ? { ...w, ...action.patch } : w)) };
     }
+    case 'updateItem': {
+      const order = state.workOrders.find((w) => w.id === action.id);
+      const item = order?.items.find((i) => i.deviceId === action.deviceId);
+      let activity = state.activity;
+      if (item && action.patch.identifiedBy && !item.identifiedBy) {
+        const how = action.patch.identifiedBy === 'qr' ? 'skeniranjem QR koda' : 'ručnim unosom oznake';
+        activity = log(state, `Serviser je identifikovao ${action.deviceId} ${how} (nalog ${action.id}).`, `/demo/nalozi/${action.id}`);
+      }
+      return {
+        ...state,
+        activity,
+        workOrders: state.workOrders.map((w) =>
+          w.id === action.id ? { ...w, items: w.items.map((i) => (i.deviceId === action.deviceId ? { ...i, ...action.patch } : i)) } : w,
+        ),
+      };
+    }
+    case 'addItem':
+      return {
+        ...state,
+        workOrders: state.workOrders.map((w) => (w.id === action.id ? { ...w, items: [...w.items, action.item] } : w)),
+        activity: log(state, `Uređaj ${action.item.deviceId} dodan na nalog ${action.id} na licu mjesta.`, `/demo/nalozi/${action.id}`),
+      };
     case 'completeOrder': {
       const order = state.workOrders.find((w) => w.id === action.id);
       if (!order) return state;
-      const device = state.devices.find((d) => d.id === order.deviceId);
       const today = state.anchor;
-      const next = device ? addMonths(today, device.intervalMonths) : null;
+      const doneIds = new Set(order.items.filter((i) => i.done).map((i) => i.deviceId));
+      const primary = state.devices.find((d) => d.id === order.deviceId);
+      const next = primary ? addMonths(today, primary.intervalMonths) : null;
+      const minutes = order.startedAt ? Math.max(5, Math.round((Date.now() - order.startedAt) / 60_000)) : order.durationMin;
       return {
         ...state,
         workOrders: state.workOrders.map((w) =>
-          w.id === action.id ? { ...w, status: 'zavrsen', completedOn: today, nextServiceOn: next, timeSpentMin: w.timeSpentMin ?? w.durationMin } : w,
+          w.id === action.id ? { ...w, status: 'zavrsen', completedOn: today, nextServiceOn: next, timeSpentMin: w.timeSpentMin ?? minutes } : w,
         ),
-        devices: state.devices.map((d) =>
-          d.id === order.deviceId && next
-            ? {
-                ...d,
-                lastServiceOn: today,
-                nextServiceOn: next,
-                history: [
-                  { date: today, title: order.category, technicianId: order.technicianId ?? 't1', summary: order.recommendation || 'Demo nalog završen.', workOrderId: order.id },
-                  ...d.history,
-                ],
-              }
-            : d,
-        ),
-        activity: log(state, `Završen demo nalog ${order.id} (${order.deviceId}).`, `/demo/izvjestaji/${order.id}`),
+        devices: state.devices.map((d) => {
+          if (!doneIds.has(d.id)) return d;
+          const item = order.items.find((i) => i.deviceId === d.id);
+          return {
+            ...d,
+            lastServiceOn: today,
+            nextServiceOn: addMonths(today, d.intervalMonths),
+            history: [
+              { date: today, title: order.category, technicianId: order.technicianId ?? 't1', summary: item?.note || order.recommendation || 'Demo nalog završen.', workOrderId: order.id },
+              ...d.history,
+            ],
+          };
+        }),
+        activity: log(state, `Završen demo nalog ${order.id} (${order.items.map((i) => i.deviceId).join(', ')}).`, `/demo/izvjestaji/${order.id}`),
       };
     }
     case 'guide':
@@ -151,7 +177,7 @@ function save(state: DemoState) {
       const slim: DemoState = {
         ...state,
         requests: state.requests.map((r) => ({ ...r, photo: null })),
-        workOrders: state.workOrders.map((w) => ({ ...w, photos: [] })),
+        workOrders: state.workOrders.map((w) => ({ ...w, items: w.items.map((i) => ({ ...i, photos: [] })) })),
       };
       window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
     } catch {
@@ -170,6 +196,8 @@ export interface NewRequestInput {
   note: string;
   errorCode: string;
   photo: ServiceRequest['photo'];
+  symptom: string;
+  urgent: boolean;
 }
 
 export interface ScheduleInput {
@@ -177,6 +205,8 @@ export interface ScheduleInput {
   date: CivilDate;
   start: string;
   durationMin: number;
+  /** Dodatni uređaji na istom objektu koji se servisiraju u istoj posjeti. */
+  extraDeviceIds?: string[];
 }
 
 interface DemoApi {
@@ -192,6 +222,8 @@ interface DemoApi {
   assignOrder: (orderId: string, schedule: ScheduleInput) => void;
   updateOrder: (orderId: string, patch: Partial<WorkOrder>) => void;
   completeOrder: (orderId: string) => void;
+  updateItem: (orderId: string, deviceId: string, patch: Partial<OrderItem>) => void;
+  addItem: (orderId: string, deviceId: string) => void;
   setGuide: (patch: Partial<GuideState>) => void;
 }
 
@@ -216,11 +248,19 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
   const nextOrderId = () => `NAL-${String(ref.current.counters.workOrder + 1).padStart(4, '0')}`;
 
+  const makeItem = useCallback((deviceId: string): OrderItem => {
+    const device = ref.current.devices.find((d) => d.id === deviceId);
+    return { deviceId, checklist: checklistFor(device?.kind ?? 'klima'), note: '', photos: [], identifiedAt: null, identifiedBy: null, done: false };
+  }, []);
+
   const makeOrder = useCallback((deviceId: string, schedule: ScheduleInput, extra: Partial<WorkOrder>): WorkOrder => {
     const device = ref.current.devices.find((d) => d.id === deviceId);
+    const ids = [deviceId, ...(schedule.extraDeviceIds ?? []).filter((x) => x !== deviceId)];
     return {
       id: nextOrderId(),
       deviceId,
+      locationId: device?.locationId ?? '',
+      items: ids.map(makeItem),
       requestId: null,
       reason: 'Redovni servis prema intervalu (DEMO interval).',
       category: 'Redovni servis',
@@ -229,9 +269,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       durationMin: schedule.durationMin,
       technicianId: schedule.technicianId,
       status: 'planiran',
-      checklist: checklistFor(device?.kind ?? 'klima'),
       notes: '',
-      photos: [],
+      startedAt: null,
       timeSpentMin: null,
       materials: '',
       recommendation: '',
@@ -240,7 +279,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       customerAck: '',
       ...extra,
     };
-  }, []);
+  }, [makeItem]);
 
   const api = useMemo<DemoApi>(
     () => ({
@@ -273,7 +312,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
           category: r.kind === 'kvar' ? 'Prijava kvara' : 'Redovni servis',
           reason:
             r.kind === 'kvar'
-              ? `Prijava kvara od kupca: ${r.note || 'bez opisa'}`
+              ? `Prijava kvara od kupca${r.urgent ? ' (uređaj ne radi)' : ''}: ${[r.symptom, r.note].filter(Boolean).join(' — ') || 'bez opisa'}`
               : `Zahtjev kupca za servis${r.note ? `: ${r.note}` : '.'}`,
         });
         dispatch({ type: 'confirmRequest', requestId, order });
@@ -289,9 +328,11 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'updateOrder', id: orderId, patch: { technicianId: schedule.technicianId, date: schedule.date, start: schedule.start, durationMin: schedule.durationMin } }),
       updateOrder: (orderId, patch) => dispatch({ type: 'updateOrder', id: orderId, patch }),
       completeOrder: (orderId) => dispatch({ type: 'completeOrder', id: orderId }),
+      updateItem: (orderId, deviceId, patch) => dispatch({ type: 'updateItem', id: orderId, deviceId, patch }),
+      addItem: (orderId, deviceId) => dispatch({ type: 'addItem', id: orderId, item: makeItem(deviceId) }),
       setGuide: (patch) => dispatch({ type: 'guide', patch }),
     }),
-    [state, ready, makeOrder],
+    [state, ready, makeOrder, makeItem],
   );
 
   return <DemoContext.Provider value={api}>{children}</DemoContext.Provider>;

@@ -38,7 +38,7 @@ function RequestsInner() {
     if (highlight) document.getElementById(`zahtjev-${highlight}`)?.scrollIntoView({ block: 'center' });
   }, [highlight]);
 
-  const list = state.requests.filter((r) => status === 'svi' || r.status === status).sort((a, b) => b.createdAt - a.createdAt);
+  const list = state.requests.filter((r) => status === 'svi' || r.status === status).sort((a, b) => Number(b.urgent && b.status === 'na_cekanju') - Number(a.urgent && a.status === 'na_cekanju') || b.createdAt - a.createdAt);
   const count = (s: 'svi' | RequestStatus) => state.requests.filter((r) => s === 'svi' || r.status === s).length;
 
   return (
@@ -85,6 +85,7 @@ function RequestsInner() {
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge tone={r.kind === 'kvar' ? 'danger' : 'info'}>{r.kind === 'kvar' ? 'Prijava kvara' : 'Zahtjev za servis'}</Badge>
                         <RequestBadge status={r.status} />
+                        {r.urgent ? <Badge tone="danger">Uređaj ne radi</Badge> : null}
                         {r.fromSimulation ? <Badge tone="demo" icon={false}>Simulirano u prikazu kupca</Badge> : null}
                       </div>
                       <h2 className="mt-2 text-base font-semibold">
@@ -116,6 +117,12 @@ function RequestsInner() {
                             <dd className="inline">
                               {formatLong(r.preferredDate)} · {r.preferredSlot}
                             </dd>
+                          </div>
+                        ) : null}
+                        {r.symptom ? (
+                          <div>
+                            <dt className="inline text-ink-3">Problem: </dt>
+                            <dd className="inline font-semibold">{r.symptom}</dd>
                           </div>
                         ) : null}
                         {r.errorCode ? (

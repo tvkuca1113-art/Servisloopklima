@@ -10,7 +10,7 @@ import { DueBadge, OrderBadge, RequestBadge } from '@/components/status';
 import { Badge, ButtonLink, Card, CardHeader, EmptyState, PageHeader, Button, buttonClass } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { formatDateTime, formatShort, relativeDays } from '@/lib/dates';
-import { deviceTitle, endTime, kpis, lookup, sortOrders } from '@/lib/derive';
+import { deviceTitle, endTime, kpis, lookup, orderTitle, sortOrders } from '@/lib/derive';
 import { useDemo } from '@/lib/store';
 
 export default function OwnerDashboard() {
@@ -73,7 +73,7 @@ export default function OwnerDashboard() {
         <Card aria-labelledby="paznja">
           <CardHeader id="paznja" title="Potrebna pažnja" subtitle="Novi zahtjevi, nalozi bez servisera i uređaji kojima je prošao rok." />
           <ul className="divide-y divide-line">
-            {k.newRequests.map((r) => {
+            {[...k.newRequests].sort((a, b) => Number(b.urgent) - Number(a.urgent) || b.createdAt - a.createdAt).map((r) => {
               const d = L.device(r.deviceId);
               return (
                 <li key={r.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:px-5">
@@ -81,12 +81,16 @@ export default function OwnerDashboard() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={r.kind === 'kvar' ? 'danger' : 'info'}>{r.kind === 'kvar' ? 'Prijava kvara' : 'Zahtjev za servis'}</Badge>
                       <RequestBadge status={r.status} />
+                      {r.urgent ? <Badge tone="danger">Uređaj ne radi</Badge> : null}
                       {r.fromSimulation ? <Badge tone="demo" icon={false}>iz prikaza kupca</Badge> : null}
                     </div>
                     <p className="mt-1.5 font-semibold">
                       {r.id} · {d ? deviceTitle(state, d) : r.deviceId}
                     </p>
-                    <p className="text-sm text-ink-2">{r.name} · {formatDateTime(r.createdAt)}</p>
+                    <p className="text-sm text-ink-2">
+                      {r.symptom ? `${r.symptom} · ` : ''}
+                      {r.name} · {formatDateTime(r.createdAt)}
+                    </p>
                   </div>
                   <ButtonLink href={`/demo/zahtjevi?istakni=${r.id}`} variant="secondary" size="sm" className="self-start sm:self-center">
                     Pogledaj zahtjev
@@ -95,7 +99,6 @@ export default function OwnerDashboard() {
               );
             })}
             {unassigned.map((w) => {
-              const d = L.device(w.deviceId);
               return (
                 <li key={w.id} className="flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:px-5">
                   <div className="min-w-0 flex-1">
@@ -104,7 +107,7 @@ export default function OwnerDashboard() {
                       <OrderBadge status={w.status} />
                     </div>
                     <p className="mt-1.5 font-semibold">
-                      {w.id} · {d ? deviceTitle(state, d) : w.deviceId}
+                      {w.id} · {orderTitle(state, w)}
                     </p>
                     <p className="text-sm text-ink-2">
                       {formatShort(w.date)} u {w.start} · {relativeDays(w.date, today)}
@@ -160,7 +163,6 @@ export default function OwnerDashboard() {
                     ) : (
                       <ul className="mt-2 space-y-1.5">
                         {orders.map((w) => {
-                          const d = L.device(w.deviceId);
                           return (
                             <li key={w.id}>
                               <Link href={`/demo/nalozi/${w.id}`} className="flex items-start gap-3 rounded-lg px-2 py-1.5 hover:bg-bg">
@@ -168,7 +170,7 @@ export default function OwnerDashboard() {
                                   {w.start}–{endTime(w)}
                                 </span>
                                 <span className="min-w-0 flex-1 text-sm">
-                                  <span className="block font-medium">{d ? deviceTitle(state, d) : w.deviceId}</span>
+                                  <span className="block font-medium">{orderTitle(state, w)}</span>
                                   <span className="mt-0.5 block">
                                     <OrderBadge status={w.status} />
                                   </span>

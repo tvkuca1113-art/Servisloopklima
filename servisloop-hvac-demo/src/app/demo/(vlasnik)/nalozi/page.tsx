@@ -7,7 +7,7 @@ import { Suspense } from 'react';
 import { OrderBadge } from '@/components/status';
 import { Card, EmptyState, PageHeader, inputClass } from '@/components/ui';
 import { formatShort, relativeDays } from '@/lib/dates';
-import { deviceTitle, endTime, isOpen, lookup, sortOrders } from '@/lib/derive';
+import { endTime, isOpen, lookup, orderTitle, sortOrders } from '@/lib/derive';
 import { useDemo } from '@/lib/store';
 
 const STATUS = [
@@ -83,7 +83,6 @@ function OrdersInner() {
       ) : (
         <ul className="space-y-2.5">
           {list.map((w) => {
-            const d = L.device(w.deviceId);
             const t = L.technician(w.technicianId);
             return (
               <li key={w.id}>
@@ -96,7 +95,7 @@ function OrdersInner() {
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold">
-                      {w.id} · {d ? deviceTitle(state, d) : w.deviceId}
+                      {w.id} · {orderTitle(state, w)}
                     </p>
                     <p className="truncate text-sm text-ink-2">{w.category}</p>
                   </div>

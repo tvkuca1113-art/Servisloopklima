@@ -65,6 +65,10 @@ export interface ServiceRequest {
   note: string;
   errorCode: string;
   photo: { name: string; dataUrl: string } | null;
+  /** Brzi izbor simptoma kod prijave kvara (npr. „Ne grije”). */
+  symptom: string;
+  /** Kupac je označio da uređaj ne radi (hitno). */
+  urgent: boolean;
   status: RequestStatus;
   createdAt: number;
   /** Zahtjev napravljen u ovoj probi preko prikaza kupca. */
@@ -83,9 +87,28 @@ export interface ChecklistEntry {
   note: string;
 }
 
+export interface Photo {
+  name: string;
+  dataUrl: string;
+}
+
+/** Jedan uređaj u posjeti. Serviser ga mora identifikovati prije unosa. */
+export interface OrderItem {
+  deviceId: string;
+  checklist: ChecklistEntry[];
+  note: string;
+  photos: Photo[];
+  identifiedAt: number | null;
+  identifiedBy: 'qr' | 'rucno' | null;
+  done: boolean;
+}
+
 export interface WorkOrder {
   id: string;
+  /** Glavni uređaj (iz zahtjeva) — prvi u `items`. */
   deviceId: string;
+  locationId: string;
+  items: OrderItem[];
   requestId: string | null;
   reason: string;
   category: 'Redovni servis' | 'Prijava kvara' | 'Provjera nakon ugradnje';
@@ -94,9 +117,8 @@ export interface WorkOrder {
   durationMin: number;
   technicianId: string | null;
   status: WorkOrderStatus;
-  checklist: ChecklistEntry[];
   notes: string;
-  photos: { name: string; dataUrl: string }[];
+  startedAt: number | null;
   timeSpentMin: number | null;
   materials: string;
   recommendation: string;

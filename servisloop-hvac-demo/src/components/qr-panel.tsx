@@ -41,7 +41,7 @@ export function QrPanel({ deviceId, title }: { deviceId: string; title: string }
 
   return (
     <Card aria-labelledby="qr-naslov">
-      <CardHeader id="qr-naslov" title="QR kod uređaja" subtitle="QR otvara pokaznu karticu ovog uređaja." />
+      <CardHeader id="qr-naslov" title="QR kod uređaja" subtitle="QR otvara pokaznu karticu ovog uređaja. Isti kod serviser skenira na objektu da potvrdi uređaj prije unosa." />
       <div className="flex flex-col items-center gap-3 px-4 py-5 sm:px-5">
         <div className="rounded-xl border border-line bg-white p-2">
           {png ? (

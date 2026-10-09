@@ -102,3 +102,15 @@ export function sortOrders(a: WorkOrder, b: WorkOrder): number {
   if (a.date !== b.date) return a.date < b.date ? -1 : 1;
   return timeToMinutes(a.start) - timeToMinutes(b.start);
 }
+
+/** „TP-001 + 2 uređaja” — kratka oznaka uređaja u posjeti. */
+export function orderDevicesLabel(w: Pick<WorkOrder, 'deviceId' | 'items'>): string {
+  const extra = w.items.length - 1;
+  return extra > 0 ? `${w.deviceId} + ${extra} ${extra === 1 ? 'uređaj' : 'uređaja'}` : w.deviceId;
+}
+
+/** „TP-001 + 2 uređaja · Demo kuća Tuzla” */
+export function orderTitle(state: DemoState, w: WorkOrder): string {
+  const l = state.locations.find((x) => x.id === w.locationId);
+  return `${orderDevicesLabel(w)} · ${l?.name ?? 'Lokacija'}`;
+}

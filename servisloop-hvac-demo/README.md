@@ -1,6 +1,11 @@
 # ServisLoop Klima — vizuelni demo
 
-**DEMO PROTOTIP.** Pokazni frontend servisnog sistema za firme koje ugrađuju i servisiraju toplotne pumpe i klima uređaje. Pokazuje izgled i približan način rada: evidenciju uređaja, QR karticu za kupca, raspored i dodjelu servisera, mobilni radni nalog i primjer servisnog izvještaja.
+**DEMO PROTOTIP.** Pokazni frontend servisnog sistema za firme koje ugrađuju i servisiraju toplotne pumpe i klima uređaje. Pokazuje izgled i približan način rada:
+- evidenciju uređaja i objekata;
+- stranicu koju kupac dobije skeniranjem QR koda (prijava kvara jednim dodirom);
+- raspored i dodjelu servisera (jedna posjeta za sve uređaje na objektu);
+- mobilni radni nalog u kojem serviser **skenira QR svakog uređaja prije unosa**;
+- primjer servisnog izvještaja.
 
 Ovo nije produkcijski servisni sistem. Svi podaci su izmišljeni, a zahtjevi, termini, servisi i poruke su simulacija.
 
@@ -12,6 +17,7 @@ Ovo nije produkcijski servisni sistem. Svi podaci su izmišljeni, a zahtjevi, te
 | Pretraga i filteri (uređaji, nalozi, zahtjevi, raspored) | Potvrda/odbijanje zahtjeva, dodjela servisera, kolizija termina | Korisnički računi, prijava i dozvole |
 | Obrasci s validacijom, lokalni pregled fotografije | Pokretanje i završetak naloga, kontrolna lista | Stvarne obavijesti (e-mail/SMS/druge kanale po dogovoru) |
 | Pravi QR kod (biblioteka `qrcode`): link, PNG i SVG preuzimanje, naljepnica za štampu | Primjeri poruka i podsjetnika (označeni „PRIMJER — NIJE POSLANO”) | Servisni obrasci i intervali koje potvrdi firma |
+| Skener servisera: prava kamera telefona (`getUserMedia` + `jsqr`, HTTPS), provjera da je uređaj na nalogu, ručni unos oznake | Demo naljepnice (dodir = skeniranje), identifikacija i obrada uređaja u posjeti | Sinhronizacija telefona servisera i kancelarije |
 | Primjer izvještaja kao A4 HTML za štampu (`Štampaj primjer izvještaja` → „Sačuvaj kao PDF”) | Datumi i rokovi (relativni na dan otvaranja) | Finalni naziv, logo, kontakt i izgled firme |
 
 Demo nema bazu, server upis, prijavu, slanje e-maila/SMS-a/Vibera, naplatu ni cron.
@@ -22,6 +28,23 @@ Demo nema bazu, server upis, prijavu, slanje e-maila/SMS-a/Vibera, naplatu ni cr
 - Stanje se drži samo u tom tabu (sessionStorage). Preživi refresh, a nestaje zatvaranjem taba. Novi tab, drugi preglednik ili telefon počinju od početnog primjera.
 - `Vrati početni primjer` (u bočnom meniju, meniju „Više” i u vodiču kao „Počni ponovo”) vraća izmišljene podatke. Datumi se tada računaju od tog dana (Europe/Sarajevo).
 - QR na fizičkom telefonu otvara pokaznu karticu uređaja. Ništa se **ne sinhronizuje** između telefona i računara.
+
+## Kako radi identifikacija uređaja na objektu
+
+Jedan QR na uređaju služi i kupcu i serviseru:
+- kupac ga skenira kamerom telefona i dobije stranicu uređaja;
+- serviser ga skenira unutar naloga (`Skeniraj QR uređaja`), a aplikacija iz adrese čita oznaku (npr. `TP-001`).
+
+Unos za uređaj otvara se samo ako je uređaj na tom nalogu:
+- uređaj s drugog objekta se odbija i ništa se ne upisuje;
+- uređaj s istog objekta koji nije na nalogu može se dodati jednim dodirom;
+- kod oštećene naljepnice moguć je ručni unos oznake, koji se u izvještaju bilježi kao „ručna identifikacija”.
+
+Da serviser ima što manje dokumentacije:
+- `Sve uredno` označi cijelu listu jednim dodirom;
+- opis je obavezan samo uz „Potrebna pažnja”;
+- preporuka se bira među gotovim prijedlozima;
+- datum, uređaj, lokacija i trajanje upisuju se automatski.
 
 ## Pokretanje lokalno
 
@@ -47,7 +70,7 @@ npm run lint        # ESLint (next/core-web-vitals + TypeScript)
 npm run typecheck   # tsc --noEmit
 npm test            # Vitest: datumi, demo podaci, KPI, kolizija
 npm run build
-npx playwright test # E2E nad production buildom (pokreće `next start` na portu 3200)
+npx playwright test # E2E nad production buildom (pokreće `next start` na portu 3200), uključuje test kamere s emuliranim videom
 ```
 
 Playwright koristi instalirani Chromium. Za testiranje objavljene verzije: `E2E_BASE_URL=https://… npx playwright test`.
@@ -56,8 +79,9 @@ Screenshotovi i primjeri (QR, PDF):
 
 ```bash
 npm run build && npx next start -p 3100 &
-BASE_URL=http://localhost:3100 node scripts/screenshots.mjs     # → screenshots/
-BASE_URL=http://localhost:3100 node scripts/flow-captures.mjs   # → screenshots/2x-*.png, primjeri/
+BASE_URL=http://localhost:3100 node scripts/screenshots.mjs                         # → screenshots/
+BASE_URL=http://localhost:3100 OUT_DIR=screenshots/tok node scripts/review.mjs      # → snimci cijelog toka
+BASE_URL=http://localhost:3100 node scripts/flow-captures.mjs                       # → primjeri/ (QR, PDF)
 ```
 
 ## Prilagodba za budućeg klijenta
@@ -88,10 +112,10 @@ src/
     page.tsx                         početna (pitch)
     demo/(vlasnik)/…                 pregled, uređaji, raspored, zahtjevi, nalozi, izvještaji, poruke
     demo/serviser/…                  mobilni prikaz servisera i nalog
-    demo/kupac/[deviceId]/           QR kartica kupca (bez interne navigacije)
+    demo/kupac/[deviceId]/           stranica kupca iz QR-a (na računaru u okviru telefona, s objašnjenjem)
     demo/(dokument)/izvjestaji/[id]  A4 izvještaj za štampu
     demo/(dokument)/naljepnica/[id]  QR naljepnica za štampu
-  components/                        UI, shellovi, vodič, QR panel, modali
+  components/                        UI, shellovi, vodič, QR panel, skener (scan-dialog), nalog servisera, modali
   config/brand.ts                    centralna konfiguracija
   lib/                               demo podaci, store, datumi, QR, izvedene vrijednosti
 e2e/                                 Playwright smoke/E2E

@@ -22,17 +22,40 @@ Stanje: 9. oktobar 2026. Obim: **vizuelni frontend demo s označenom simulacijom
 - [x] Izvještaj: A4 HTML + print CSS, dugme `Štampaj primjer izvještaja`, DEMO u headeru i footeru.
 - [x] Primjeri poruka (4) s „PRIMJER — NIJE POSLANO” i blok „Šta bi se povezalo u vašoj verziji?”.
 - [x] Pristupačnost: trajni labeli, greške uz polja (`aria-invalid`/`aria-describedby`), focus ring, native `<dialog>` s povratkom fokusa, skip link, reduced-motion, statusi s tekstom i ikonom, touch ciljevi ≥44 px, input 16 px na mobilnom.
-- [x] Testovi: 8 unit (Vitest), 14 E2E (Playwright). Lint, typecheck i build prolaze.
+- [x] Testovi: 11 unit (Vitest), 16 E2E (Playwright, uključujući kameru s emuliranim videom). Lint, typecheck i build prolaze.
 - [x] Predaja: README, DEMO-SCENARIO.md, TEST-REPORT.md, `screenshots/` (33), `primjeri/` (QR PNG/SVG, 3 PDF-a).
+
+## Drugi krug (po povratnoj informaciji naručioca)
+
+- [x] Nalog je **posjeta objektu** s više uređaja (`WorkOrder.items[]`: kontrolna lista, napomena, fotografije, `identifiedBy`/`identifiedAt`, `done` po uređaju).
+- [x] Seed: Demo kuća Tuzla ima TP-001, KL-012 i KL-015; današnji NAL-0111 i NAL-0112 imaju po 2 uređaja; NAL-0116 ima 2 uređaja.
+- [x] Dodjela iz zahtjeva i planiranje predlažu ostale uređaje na objektu (rok ≤ 90 dana). Trajanje +30 min po uređaju, a termin se pomjeri na slobodan ako je predloženi zauzet.
+- [x] Skener (`src/components/scan-dialog.tsx`):
+  - prava kamera (`getUserMedia` + `jsqr`), demo naljepnice (uključujući jednu s drugog objekta) i ručni unos;
+  - provjera pripadnosti nalogu: drugi objekat → odbijeno, isti objekat → „Dodaj na nalog”.
+- [x] Nalog servisera:
+  - „Stigao sam — pokreni posjetu”;
+  - lista uređaja, unos zaključan do skeniranja;
+  - `Sve uredno`, opis samo uz „Potrebna pažnja”;
+  - gotove preporuke, opcionalni dodaci sklopljeni, automatsko trajanje.
+- [x] Izvještaj po uređaju s načinom identifikacije; kompaktan red kada je sve uredno; sljedeći rok po uređaju.
+- [x] Prikaz kupca (`/demo/kupac/[id]`):
+  - na desktopu objašnjenje u 5 koraka i QR za vlastiti telefon, a stranica u okviru telefona;
+  - na telefonu sklopivo objašnjenje;
+  - gornja demo traka s logom (početna) i `Nazad na demo`;
+  - prijava kvara: izbor simptoma + hitnost + opcionalni opis i fotografija; kontakt popunjen iz evidencije;
+  - status prijave za kupca.
+- [x] Vlasnik vidi simptom i „Uređaj ne radi”; hitne prijave su prve.
+- [x] Tri pregledna prolaza i ispravke (vidi TEST-REPORT.md).
 
 ## Otvoreno
 
-- [ ] **Zaseban Vercel deploy.** MCP pristup timu `eminjasarevic1-4306s-projects` vratio je 403 i za kreiranje projekta i za deployment. U okruženju nema Vercel CLI ni tokena. Korake za ručnu objavu vidi u README (Root Directory `servisloop-hvac-demo`, repo `Servisloopklima`). Nakon deploya:
+- [ ] **Provjera objavljene verzije.** Naručilac je objavio demo (`servisloop-hvac-demo.vercel.app`, prema screenshotu). Iz ovog okruženja adresa nije dostupna (proxy; Vercel 403), pa provjeru nakon novog pusha treba uraditi ručno:
   - provjeriti `/`, `/demo`, `/demo/kupac/TP-001` u privatnom prozoru;
   - pokrenuti `E2E_BASE_URL=https://<domen> npx playwright test`;
   - regenerisati `primjeri/` s `BASE_URL=https://<domen>` da QR vodi na javni domen;
   - tek tada navesti javni HTTPS link.
-- [ ] Fizičko skeniranje QR-a telefonom i sa štampane naljepnice.
+- [ ] Fizičko skeniranje QR-a telefonom (kupac i skener servisera) i sa štampane naljepnice. Skener je provjeren samo emuliranom kamerom.
 - [ ] Provjera na stvarnom iOS Safari / Android Chrome i čitačem ekrana.
 - [ ] Opcionalno: stvarni kontakt autora u `brand.ts` (samo ako ga naručilac dostavi).
 

@@ -54,6 +54,7 @@ export default function DeviceDetail() {
   const open = orders.filter(isOpen);
   const requests = state.requests.filter((r) => r.deviceId === device.id && r.status === 'na_cekanju');
   const title = deviceTitle(state, device);
+  const siblings = state.devices.filter((x) => x.locationId === device.locationId && x.id !== device.id);
 
   return (
     <>
@@ -117,6 +118,19 @@ export default function DeviceDetail() {
             <Info label="Serijski broj">
               <span className="font-mono text-sm">{device.serial}</span>
             </Info>
+            {siblings.length ? (
+              <div className="sm:col-span-2">
+                <Info label="Na istom objektu">
+                  <span className="flex flex-wrap gap-x-4 gap-y-1">
+                    {siblings.map((x) => (
+                      <Link key={x.id} href={`/demo/uredaji/${x.id}`} className="inline-flex min-h-9 items-center font-medium text-primary hover:underline">
+                        {x.id} · {x.name}
+                      </Link>
+                    ))}
+                  </span>
+                </Info>
+              </div>
+            ) : null}
             {device.note ? (
               <div className="sm:col-span-2">
                 <Info label="Napomena">{device.note}</Info>

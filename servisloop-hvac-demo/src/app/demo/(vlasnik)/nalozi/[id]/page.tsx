@@ -13,6 +13,7 @@ import { ANSWER_LABEL } from '@/lib/checklists';
 import { formatLong } from '@/lib/dates';
 import { deviceTitle, endTime, isOpen, lookup } from '@/lib/derive';
 import { useDemo } from '@/lib/store';
+import { identificationLabel } from '@/components/work-order-run';
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -34,11 +35,10 @@ export default function OrderDetail() {
   }
 
   const d = L.device(order.deviceId);
-  const loc = d ? L.deviceLocation(d) : undefined;
-  const cust = d ? L.deviceCustomer(d) : undefined;
+  const loc = L.location(order.locationId);
+  const cust = loc ? L.customer(loc.customerId) : undefined;
   const tech = L.technician(order.technicianId);
   const request = order.requestId ? L.request(order.requestId) : undefined;
-  const answered = order.checklist.filter((c) => c.answer);
 
   return (
     <>
@@ -89,7 +89,7 @@ export default function OrderDetail() {
               <dd className="mt-0.5 font-medium">{tech ? tech.name : <Badge tone="warn">Bez servisera</Badge>}</dd>
             </div>
             <div>
-              <dt className="text-xs font-semibold tracking-wide text-ink-3 uppercase">Uređaj</dt>
+              <dt className="text-xs font-semibold tracking-wide text-ink-3 uppercase">Glavni uređaj (iz zahtjeva / plana)</dt>
               <dd className="mt-0.5">
                 {d ? (
                   <Link href={`/demo/uredaji/${d.id}`} className="font-medium text-primary hover:underline">
@@ -137,22 +137,37 @@ export default function OrderDetail() {
         </Card>
 
         <Card aria-labelledby="nalog-lista">
-          <CardHeader id="nalog-lista" title="Kontrolna lista" subtitle="Popunjava serviser na telefonu." />
-          {answered.length === 0 ? (
-            <EmptyState title="Još nije popunjena" action={isOpen(order) ? <ButtonLink href={`/demo/serviser/nalog/${order.id}`} variant="secondary" size="sm">Otvori kao serviser</ButtonLink> : undefined} />
-          ) : (
-            <ul className="divide-y divide-line">
-              {order.checklist.map((c) => (
-                <li key={c.id} className="px-4 py-3 sm:px-5">
+          <CardHeader
+            id="nalog-lista"
+            title={`Uređaji u posjeti (${order.items.length})`}
+            subtitle="Serviser na objektu skenira QR svakog uređaja prije unosa."
+            action={isOpen(order) ? <ButtonLink href={`/demo/serviser/nalog/${order.id}`} variant="secondary" size="sm">Otvori kao serviser</ButtonLink> : undefined}
+          />
+          <ul className="divide-y divide-line">
+            {order.items.map((item) => {
+              const dev = L.device(item.deviceId);
+              const attention = item.checklist.filter((c) => c.answer === 'paznja');
+              return (
+                <li key={item.deviceId} className="px-4 py-3 sm:px-5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-medium">{c.label}</span>
-                    {c.answer ? <Badge tone={c.answer === 'uredno' ? 'ok' : c.answer === 'paznja' ? 'warn' : 'neutral'}>{ANSWER_LABEL[c.answer]}</Badge> : <Badge>Bez odgovora</Badge>}
+                    <Link href={`/demo/uredaji/${item.deviceId}`} className="font-semibold text-primary hover:underline">
+                      {dev?.id} · {dev?.name}
+                    </Link>
+                    {item.done ? <Badge tone="ok">Obrađen</Badge> : item.identifiedBy ? <Badge tone="info">Unos u toku</Badge> : <Badge>Čeka skeniranje</Badge>}
                   </div>
-                  {c.note ? <p className="mt-1 text-sm text-ink-2">{c.note}</p> : null}
+                  <p className="mt-0.5 text-sm text-ink-2">
+                    {dev?.typeLabel} · {item.identifiedBy ? identificationLabel(item) : 'Još nije identifikovan na objektu'}
+                  </p>
+                  {attention.map((c) => (
+                    <p key={c.id} className="mt-1 text-sm">
+                      <Badge tone="warn">{ANSWER_LABEL.paznja}</Badge> {c.label}
+                      {c.note ? ` — ${c.note}` : ''}
+                    </p>
+                  ))}
                 </li>
-              ))}
-            </ul>
-          )}
+              );
+            })}
+          </ul>
         </Card>
       </div>
 

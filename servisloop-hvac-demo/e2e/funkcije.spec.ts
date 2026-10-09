@@ -34,9 +34,10 @@ test('QR PNG i SVG se preuzimaju i dekodiraju na URL novog sajta', async ({ page
   const p = await phone.newPage();
   await p.goto(expected);
   await expect(p.getByText('Vaš uređaj')).toBeVisible();
-  await expect(p.getByRole('heading', { name: 'TP-001 · Demo kuća Tuzla' })).toBeVisible();
-  await expect(p.getByText('QR otvara pokaznu karticu uređaja. Za cijeli povezani primjer vratite se na demo vodič.')).toBeVisible();
-  await expect(p.getByRole('button', { name: 'Pogledaj primjer zakazivanja' })).toBeVisible();
+  await expect(p.getByRole('heading', { name: 'Toplotna pumpa — grijanje kuće' })).toBeVisible();
+  await expect(p.getByTestId('customer-explainer-mobile')).toContainText('ovo je stranica koju kupac dobije skeniranjem QR koda');
+  await expect(p.getByRole('button', { name: /Prijavi kvar/ })).toBeVisible();
+  await expect(p.getByRole('link', { name: 'Nazad na demo' })).toBeVisible();
   await phone.close();
 });
 

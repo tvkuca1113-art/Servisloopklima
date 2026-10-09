@@ -54,3 +54,17 @@ export function checklistGaps(items: ChecklistEntry[], recommendation: string): 
 export function hasGaps(g: ChecklistGaps): boolean {
   return g.unanswered.length > 0 || g.attentionWithoutNote.length > 0 || g.missingRecommendation;
 }
+
+/** „Sve uredno”: popuni sve neodgovorene stavke odgovorom „Uredno”. */
+export function markAllOk(items: ChecklistEntry[]): ChecklistEntry[] {
+  return items.map((i) => (i.answer === null ? { ...i, answer: 'uredno' } : i));
+}
+
+/** Iz sadržaja QR-a (URL kartice ili sama oznaka) izdvaja oznaku uređaja. */
+export function deviceIdFromQr(text: string): string | null {
+  const t = text.trim();
+  const m = t.match(/\/demo\/kupac\/([^/?#\s]+)/i);
+  const raw = m ? decodeURIComponent(m[1]!) : t;
+  const id = raw.toUpperCase().replace(/\s+/g, '');
+  return /^(TP|KL)-?\d{3}$/.test(id) ? (id.includes('-') ? id : `${id.slice(0, 2)}-${id.slice(2)}`) : null;
+}

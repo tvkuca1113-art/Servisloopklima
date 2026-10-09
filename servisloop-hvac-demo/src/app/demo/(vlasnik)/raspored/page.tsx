@@ -10,7 +10,7 @@ import { OrderBadge } from '@/components/status';
 import { Button, Card, PageHeader, inputClass } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { addDays, formatDayMonth, formatLong, formatShort, startOfWeek, weekdayName } from '@/lib/dates';
-import { endTime, lookup, sortOrders } from '@/lib/derive';
+import { endTime, lookup, orderDevicesLabel, sortOrders } from '@/lib/derive';
 import { useDemo } from '@/lib/store';
 import type { WorkOrder } from '@/lib/types';
 
@@ -53,7 +53,7 @@ function ScheduleInner() {
           <span className="block font-semibold tabular-nums">
             {w.start}–{endTime(w)}
           </span>
-          <span className="block font-medium">{w.deviceId}</span>
+          <span className="block font-medium">{orderDevicesLabel(w)}</span>
           <span className="block text-[13px] text-ink-2">{loc?.name}</span>
           <span className="block text-[13px] text-ink-2">{t ? t.name : 'Bez servisera'}</span>
         </Link>

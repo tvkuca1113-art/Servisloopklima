@@ -6,7 +6,7 @@ import { AlertTriangle, CalendarClock, ClipboardList, Inbox } from 'lucide-react
 import { brand } from '@/config/brand';
 import { formatLong, formatShort, relativeDays } from '@/lib/dates';
 import { GUIDE_DEVICE_ID } from '@/lib/demo-data';
-import { deviceTitle, endTime, kpis, lookup, sortOrders } from '@/lib/derive';
+import { deviceTitle, endTime, kpis, lookup, orderDevicesLabel, sortOrders } from '@/lib/derive';
 import { useDemo } from '@/lib/store';
 
 import { DueBadge } from './status';
@@ -89,7 +89,7 @@ export function LandingPreview() {
                   {todayOrders.map((w) => (
                     <li key={w.id} className="px-2.5 py-1.5 text-[11px]">
                       <p className="font-semibold tabular-nums">
-                        {w.start}–{endTime(w)} · {w.deviceId}
+                        {w.start}–{endTime(w)} · {orderDevicesLabel(w)}
                       </p>
                       <p className="truncate text-ink-2">{L.technician(w.technicianId)?.name ?? 'Bez servisera'}</p>
                     </li>

@@ -5,7 +5,7 @@ import { FileText } from 'lucide-react';
 
 import { Card, EmptyState, PageHeader } from '@/components/ui';
 import { formatLong } from '@/lib/dates';
-import { deviceTitle, lookup } from '@/lib/derive';
+import { lookup, orderTitle } from '@/lib/derive';
 import { useDemo } from '@/lib/store';
 
 export default function ReportsPage() {
@@ -25,7 +25,6 @@ export default function ReportsPage() {
       ) : (
         <ul className="grid gap-3 md:grid-cols-2">
           {done.map((w) => {
-            const d = L.device(w.deviceId);
             return (
               <li key={w.id}>
                 <Link href={`/demo/izvjestaji/${w.id}`} className="flex gap-4 rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-[var(--shadow-card)] hover:border-primary/40">
@@ -34,7 +33,7 @@ export default function ReportsPage() {
                   </span>
                   <span className="min-w-0">
                     <span className="block font-semibold">
-                      IZV-{w.id.replace('NAL-', '')} · {d ? deviceTitle(state, d) : w.deviceId}
+                      IZV-{w.id.replace('NAL-', '')} · {orderTitle(state, w)}
                     </span>
                     <span className="block text-sm text-ink-2">
                       {w.completedOn ? formatLong(w.completedOn) : ''} · {L.technician(w.technicianId)?.name}

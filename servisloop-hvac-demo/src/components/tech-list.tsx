@@ -55,7 +55,7 @@ export function JobCard({ order, showDate }: { order: WorkOrder; showDate?: bool
   const { state } = useDemo();
   const L = lookup(state);
   const d = L.device(order.deviceId);
-  const loc = d ? L.deviceLocation(d) : undefined;
+  const loc = L.location(order.locationId);
   return (
     <article className="rounded-[var(--radius-card)] border border-line bg-surface p-4 shadow-[var(--shadow-card)]" data-testid={`job-${order.id}`}>
       <div className="flex items-start justify-between gap-3">
@@ -68,10 +68,10 @@ export function JobCard({ order, showDate }: { order: WorkOrder; showDate?: bool
         </div>
         <OrderBadge status={order.status} />
       </div>
-      <h3 className="mt-2 font-semibold">
-        {order.deviceId} · {loc?.name}
-      </h3>
-      <p className="text-sm text-ink-2">{d?.typeLabel}</p>
+      <h3 className="mt-2 font-semibold">{loc?.name}</h3>
+      <p className="text-sm text-ink-2">
+        {order.items.length > 1 ? `${order.items.length} uređaja: ${order.items.map((i) => i.deviceId).join(', ')}` : `${order.deviceId} · ${d?.typeLabel}`}
+      </p>
       <p className="mt-1 flex items-start gap-1.5 text-sm text-ink-2">
         <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
         {loc?.address}, {loc?.city}

@@ -8,9 +8,10 @@ import { useEffect } from 'react';
 import { Badge, Button, ButtonLink, Card, EmptyState } from '@/components/ui';
 import { brand } from '@/config/brand';
 import { ANSWER_LABEL } from '@/lib/checklists';
-import { formatInterval, formatLong } from '@/lib/dates';
+import { addMonths, formatInterval, formatLong } from '@/lib/dates';
 import { lookup } from '@/lib/derive';
 import { useDemo } from '@/lib/store';
+import { identificationLabel } from '@/components/work-order-run';
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -46,9 +47,8 @@ export default function ReportPage() {
     );
   }
 
-  const d = L.device(order.deviceId);
-  const loc = d ? L.deviceLocation(d) : undefined;
-  const cust = d ? L.deviceCustomer(d) : undefined;
+  const loc = L.location(order.locationId);
+  const cust = loc ? L.customer(loc.customerId) : undefined;
   const tech = L.technician(order.technicianId);
 
   return (
@@ -94,71 +94,105 @@ export default function ReportPage() {
           <Row label="Lokacija">
             {loc?.name}, {loc?.address}, {loc?.city}
           </Row>
-          <Row label="Uređaj">
-            {d?.id} · {d?.name}
-            <span className="block text-[13px] text-ink-2">{d?.typeLabel}</span>
+          <Row label="Uređaji u posjeti">
+            {order.items.length} · obrađeno {order.items.filter((i) => i.done).length}
           </Row>
-          <Row label="Model / serijski broj">
-            {d?.model}
-            <span className="block font-mono text-[12px] text-ink-2">{d?.serial}</span>
-          </Row>
+          <Row label="Trajanje posjete">{order.timeSpentMin != null ? `${order.timeSpentMin} min` : '—'}</Row>
           <div className="sm:col-span-2 print:col-span-2">
             <Row label="Razlog dolaska">{order.reason}</Row>
           </div>
         </dl>
 
-        <h2 className="mt-6 text-[15px] font-bold">Kontrolna lista (demo obrazac)</h2>
-        <table className="mt-2 w-full border-collapse text-left text-[13px]">
-          <thead>
-            <tr className="border-b border-line-2 text-[11px] tracking-wide text-ink-3 uppercase">
-              <th scope="col" className="py-1.5 pr-2 font-semibold">Stavka</th>
-              <th scope="col" className="w-[130px] py-1.5 pr-2 font-semibold">Rezultat</th>
-              <th scope="col" className="py-1.5 font-semibold">Napomena</th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.checklist.map((c) => (
-              <tr key={c.id} className="print-avoid-break border-b border-line align-top">
-                <td className="py-2 pr-2 font-medium">{c.label}</td>
-                <td className="py-2 pr-2">
-                  {c.answer ? <Badge tone={c.answer === 'uredno' ? 'ok' : c.answer === 'paznja' ? 'warn' : 'neutral'}>{ANSWER_LABEL[c.answer]}</Badge> : <span className="text-ink-3">Bez odgovora</span>}
-                </td>
-                <td className="py-2">{c.note || <span className="text-ink-3">—</span>}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {order.items.map((item) => {
+          const dev = L.device(item.deviceId);
+          return (
+            <section key={item.deviceId} className="mt-6 border-t border-line pt-4" aria-label={`Uređaj ${item.deviceId}`}>
+              <div className="print-avoid-break flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h2 className="text-[15px] font-bold">
+                    {dev?.id} · {dev?.name}
+                  </h2>
+                  <p className="text-[12px] text-ink-2">
+                    {dev?.typeLabel} · {dev?.model} · <span className="font-mono">{dev?.serial}</span>
+                  </p>
+                </div>
+                <span className={item.identifiedBy === 'qr' ? 'text-[12px] font-semibold text-ok' : 'text-[12px] font-semibold text-warn'}>
+                  Identifikacija: {identificationLabel(item)}
+                </span>
+              </div>
+              {item.done && item.checklist.every((c) => c.answer === 'uredno' && !c.note) ? (
+                <p className="mt-2 text-[13px]">
+                  <Badge tone="ok">Uredno</Badge> Sve stavke demo obrasca ({item.checklist.length}/{item.checklist.length}): {item.checklist.map((c) => c.label).join(', ')}.
+                </p>
+              ) : item.done ? (
+                <table className="mt-2 w-full border-collapse text-left text-[13px]">
+                  <thead>
+                    <tr className="border-b border-line-2 text-[11px] tracking-wide text-ink-3 uppercase">
+                      <th scope="col" className="py-1.5 pr-2 font-semibold">Stavka (demo obrazac)</th>
+                      <th scope="col" className="w-[130px] py-1.5 pr-2 font-semibold">Rezultat</th>
+                      <th scope="col" className="py-1.5 font-semibold">Napomena</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {item.checklist.map((c) => (
+                      <tr key={c.id} className="print-avoid-break border-b border-line align-top">
+                        <td className="py-1.5 pr-2 font-medium">{c.label}</td>
+                        <td className="py-1.5 pr-2">
+                          {c.answer ? <Badge tone={c.answer === 'uredno' ? 'ok' : c.answer === 'paznja' ? 'warn' : 'neutral'}>{ANSWER_LABEL[c.answer]}</Badge> : <span className="text-ink-3">Bez odgovora</span>}
+                        </td>
+                        <td className="py-1.5">{c.note || <span className="text-ink-3">—</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="mt-2 rounded bg-warn-soft px-3 py-2 text-[13px] text-warn">Uređaj nije pregledan u ovoj posjeti.</p>
+              )}
+              {item.note ? (
+                <p className="mt-2 text-[13px]">
+                  <span className="font-semibold">Napomena: </span>
+                  {item.note}
+                </p>
+              ) : null}
+              {item.photos.length > 0 ? (
+                <div className="print-avoid-break mt-2 flex flex-wrap gap-2">
+                  {item.photos.map((p, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={i} src={p.dataUrl} alt={p.name} className="h-24 w-32 rounded border border-line object-cover" />
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          );
+        })}
 
-        <div className="mt-6 grid gap-x-8 gap-y-3 sm:grid-cols-2 print:grid-cols-2">
+        <div className="mt-6 grid gap-x-8 gap-y-3 border-t border-line pt-4 sm:grid-cols-2 print:grid-cols-2">
           <div className="sm:col-span-2 print:col-span-2">
-            <Row label="Obavljeni radovi i bilješke">
+            <Row label="Bilješka za posjetu">
               <span className="whitespace-pre-wrap">{order.notes || '—'}</span>
             </Row>
           </div>
-          <Row label="Utrošeno vrijeme (primjer)">{order.timeSpentMin != null ? `${order.timeSpentMin} min` : '—'}</Row>
           <Row label="Materijal (primjer)">{order.materials || '—'}</Row>
         </div>
-
-        {order.photos.length > 0 ? (
-          <div className="print-avoid-break mt-5">
-            <p className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">Fotografije (lokalni primjer)</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {order.photos.map((p, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={p.dataUrl} alt={p.name} className="h-28 w-36 rounded border border-line object-cover" />
-              ))}
-            </div>
-          </div>
-        ) : null}
 
         <div className="print-avoid-break mt-6 rounded-lg border border-line bg-bg p-4">
           <p className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">Preporuka</p>
           <p className="mt-1 text-[14px] whitespace-pre-wrap">{order.recommendation || '—'}</p>
-          <p className="mt-3 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">Sljedeći servis</p>
-          <p className="mt-1 text-[14px] font-semibold">
-            {order.nextServiceOn ? formatLong(order.nextServiceOn) : '—'}
-            {d ? <span className="font-normal text-ink-2"> · interval {formatInterval(d.intervalMonths)} (DEMO postavka)</span> : null}
-          </p>
+          <p className="mt-3 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">Sljedeći servis (DEMO interval)</p>
+          <ul className="mt-1 space-y-0.5 text-[14px]">
+            {order.items
+              .filter((i) => i.done)
+              .map((i) => {
+                const dev = L.device(i.deviceId);
+                const next = dev && order.completedOn ? addMonths(order.completedOn, dev.intervalMonths) : null;
+                return (
+                  <li key={i.deviceId}>
+                    <span className="font-semibold">{i.deviceId}:</span> {next ? formatLong(next) : '—'}
+                    {dev ? <span className="text-ink-2"> · interval {formatInterval(dev.intervalMonths)}</span> : null}
+                  </li>
+                );
+              })}
+          </ul>
         </div>
 
         <div className="print-avoid-break mt-6 grid gap-6 sm:grid-cols-2 print:grid-cols-2">

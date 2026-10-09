@@ -1,7 +1,8 @@
 # Test report — ServisLoop Klima vizuelni demo
 
-Datum provjere: 9. oktobar 2026. Okruženje: Linux kontejner, Node 22.22.0, npm 10.9.4, Next.js 15.5.22, Playwright 1.56.1 s instaliranim Chromiumom (headless).
-Svi rezultati ispod su stvarno izvedeni nad production buildom (`next build` + `next start`). Što nije izvedeno, navedeno je na kraju.
+Posljednja provjera: 9. oktobar 2026. (drugi krug: skeniranje uređaja na objektu, novi prikaz kupca, tri pregledna prolaza).
+Okruženje: Linux kontejner, Node 22.22.0, npm 10.9.4, Next.js 15.5.22, Playwright 1.56.1 s instaliranim Chromiumom (headless).
+Svi rezultati su stvarno izvedeni nad production buildom (`next build` + `next start`). Što nije izvedeno, navedeno je na kraju.
 
 ## Rezime
 
@@ -9,97 +10,93 @@ Svi rezultati ispod su stvarno izvedeni nad production buildom (`next build` + `
 | --- | --- | --- |
 | Lint | `npm run lint` | prošlo, 0 grešaka, 0 upozorenja |
 | Typecheck | `npm run typecheck` | prošlo |
-| Unit testovi | `npm test` | 2 fajla, **8/8 prošlo** |
+| Unit testovi | `npm test` | 3 fajla, **11/11 prošlo** |
 | Production build | `npm run build` | prošlo; 18 ruta |
-| E2E / smoke | `npx playwright test` | **14/14 prošlo** (≈1,2 min) |
-| Screenshot skripta | `node scripts/screenshots.mjs` | 26 snimaka (desktop 1440 i mobile 390), 0 grešaka u konzoli, 0 px horizontalnog overflowa |
-| Snimanje toka | `node scripts/flow-captures.mjs` | 7 snimaka stanja + QR PNG/SVG + 3 PDF-a iz print prikaza |
-| **Javni deploy** | Vercel MCP | **nije izveden**: 403 „You don't have permission to create the project” (vidi D01) |
+| E2E / smoke | `npx playwright test` | **16/16 prošlo**, uključujući test kamere |
+| Screenshot skripte | `scripts/screenshots.mjs`, `scripts/review.mjs` | 26 + 24 snimka; 0 grešaka u konzoli; 0 px horizontalnog overflowa |
+| Primjeri | `scripts/flow-captures.mjs` | QR PNG/SVG + 3 PDF-a iz print prikaza |
+| Javni deploy | — | Objavljenu adresu (`servisloop-hvac-demo.vercel.app`, vidljiva na screenshotu naručioca) **nisam mogao otvoriti iz ovog okruženja**: proxy odbija vezu, Vercel API vraća 403. Provjera je izvedena na istom kodu lokalno. |
 
 ## Automatski testovi (Playwright, `e2e/`)
 
 | Test | Šta provjerava |
 | --- | --- |
-| `glavni-tok › cijeli lokalni tok od QR kartice do izvještaja` | početna (DEMO tekst) → vlasnik (vodič korak 1, 7 otvorenih naloga) → TP-001 (QR URL) → prikaz kupca → validacija prazne/loše forme (greške uz polja, unos ostaje) → `Simuliraj slanje zahtjeva` → potvrda „Prikazan je primjer zahtjeva DEMO-001. Nije poslan servisnoj firmi.” → zahtjev kod vlasnika → **demo kolizija** (Lejla 09:00, dugme onemogućeno) → dodjela Amaru → nalog NAL-0118 + „Promjena je prikazana u ovoj probnoj verziji.” → serviser: pokretanje, prazna lista („U demo obrascu nedostaje”), popunjavanje, završetak → izvještaj (DEMO oznaka, NAL-0118, `č ć š ž đ`) → print media sakriva alatnu traku → vodič „završen”, aktivnost upisana → reset vraća početno stanje; bez grešaka u konzoli |
-| `glavni-tok › reload u istom tabu…` | prijava kvara (potvrda „Stvarna intervencija nije naručena.”) ostaje nakon reloada u istom tabu; novi browser kontekst je ne vidi |
-| `funkcije › QR PNG i SVG…` | URL = `{baseURL}/demo/kupac/TP-001`, ne sadrži `servisloop2`; PNG se preuzima (≥256 px) i **jsQR ga dekodira na tačan URL**; SVG se preuzima, renderuje i dekodira na isti URL; URL otvoren u novom mobilnom kontekstu prikazuje karticu bez prijave i poštenu QR napomenu |
+| `glavni-tok › cijeli lokalni tok…` | početna (DEMO tekst) → vlasnik (vodič korak 1, 7 otvorenih naloga) → TP-001 (QR URL) → **prikaz kupca**: objašnjenje u koracima, okvir telefona, `Nazad na demo` → validacija (datum, termin, kontakt; unos ostaje) → potvrda „Prikazan je primjer zahtjeva DEMO-001. Nije poslan servisnoj firmi.” + status prijave → vlasnik: **KL-012 i KL-015 predloženi u istoj posjeti**, demo kolizija (Lejla 09:00, dugme onemogućeno) → dodjela → NAL-0118 s 3 uređaja → serviser: završetak bez obrade navodi šta nedostaje → **naljepnica s drugog objekta odbijena („Pogrešan uređaj… Ništa nije upisano”)** → TP-001 skeniran → prazna lista pokazuje šta nedostaje → `Sve uredno` → **KL-012 ručnim unosom** + „Potrebna pažnja” bez opisa (traži opis) → KL-015 → preporuka → završetak (3/3) → izvještaj (sva 3 uređaja, „Ručni unos oznake”, `čćšžđ`) → print sakriva alatnu traku → kupac vidi „Servis obavljen” → vodič „završen” → reset; 0 grešaka u konzoli |
+| `glavni-tok › uređaj s istog objekta…` | KL-003 skeniran na posjeti NAL-0111 → „nije na nalogu” → `Dodaj na nalog i nastavi` → 3 uređaja na nalogu |
+| `glavni-tok › reload u istom tabu…` | prijava kvara bez simptoma traži izbor; „Curi voda” + „Ne radi uopšte” → potvrda „Stvarna intervencija nije naručena.” → vlasnik vidi simptom i „Uređaj ne radi”; ostaje nakon reloada; novi browser kontekst je ne vidi |
+| `kamera › skener servisera dekodira QR iz kamere…` | Chromium s lažnom kamerom (Y4M video s QR kodom KL-002) → `Skeniraj kamerom` → **jsQR dekodira sliku s kamere** i otvara unos baš za KL-002 („QR skeniran”) |
+| `funkcije › QR PNG i SVG…` | URL = `{baseURL}/demo/kupac/TP-001`, bez `servisloop2`; PNG (≥256 px) i SVG se preuzimaju i **dekodiraju na tačan URL**; URL u novom mobilnom kontekstu otvara stranicu kupca bez prijave, s objašnjenjem i `Nazad na demo` |
 | `funkcije › pretraga i filteri…` | 24/24, pumpe 8, klime 16, zakasnio 4, „Mostar” 3, prazno stanje |
-| `funkcije › dodavanje i uređivanje…` | validacija naziva i lokacije, novi TP-009, izmjena naziva, lista 25 |
-| `funkcije › fotografija kvara…` | odbijen `.txt` s porukom o formatu, PNG lokalni pregled, uklanjanje; **0 ne-GET zahtjeva** (nema uploada) |
-| `funkcije › primjeri poruka…` | 4× „PRIMJER — NIJE POSLANO”, „Primjer poruke — nije poslano.”; tekst ne sadrži „dostavljeno”, „trajno sačuvan”, „sve funkcije su aktivne”, „stvarno zakazan” |
-| `rute-i-mobilni › sve glavne rute…` | 19 ruta direktno: HTTP 200, DEMO traka vidljiva, nema `href="#"`; `/demo/kupac` preusmjerava na TP-001; bez grešaka u konzoli |
-| `rute-i-mobilni › overflow 360/390/430/768/1280` | svih 19 ruta bez horizontalnog overflowa na svakoj širini |
-| `rute-i-mobilni › modal…` | otvaranje tastaturom, `Esc` zatvara, fokus se vraća na dugme |
+| `funkcije › dodavanje i uređivanje…` | validacija, novi TP-009, izmjena naziva, lista 25 |
+| `funkcije › fotografija kvara…` | odbijen `.txt`, PNG lokalni pregled, uklanjanje; 0 ne-GET zahtjeva (nema uploada) |
+| `funkcije › primjeri poruka…` | 4× „PRIMJER — NIJE POSLANO”; bez „dostavljeno / trajno sačuvan / sve funkcije su aktivne / stvarno zakazan” |
+| `rute-i-mobilni › sve glavne rute…` | 19 ruta direktno: HTTP 200, DEMO traka, nema `href="#"`; 0 grešaka u konzoli |
+| `rute-i-mobilni › overflow 360/390/430/768/1280` | svih 19 ruta bez horizontalnog overflowa |
+| `rute-i-mobilni › modal…` | tastatura, `Esc`, povratak fokusa |
 
-Unit (`src/lib/*.test.ts`): kalendarski mjeseci (31. aug + 6 mj. = 28./29. feb; 6 mjeseci ≠ 180 dana), bosanski formati datuma, ponedjeljak sedmice, „danas” u Europe/Sarajevo, obim seed podataka (6/8/24/16/8/2/3), KPI iz podataka, detekcija kolizije.
+Unit (`src/lib/*.test.ts`):
+- kalendarski mjeseci i bosanski formati datuma;
+- seed (6/8/24/16/8/2/3), KPI, kolizija;
+- čitanje oznake uređaja iz QR-a (URL, ručni unos `kl012`, odbijanje drugih kodova);
+- `Sve uredno` popunjava samo neodgovorene stavke.
+
+## Tri pregledna prolaza (drugi krug)
+
+Svaki prolaz je kroz `scripts/review.mjs` snimio cijeli tok na 1440 px i 390 px: kupac → kvar → vlasnik → dodjela → serviser → skeniranje → pogrešan uređaj → unos → završetak → izvještaj → kupac vidi status, plus pregled, raspored, nalozi, uređaji, početna, serviser, poruke. Snimke sam pregledao i popravio:
+
+| Prolaz | Nađeno | Urađeno |
+| --- | --- | --- |
+| 1 | Napomene „DEMO” imale su ikonu praznog kruga koja liči na radio dugme (vidljivo i na snimku naručioca) | Ikona „info” |
+| 1 | Više obavijesti odjednom prekrivalo je sadržaj; na desktopu su prekrivale navigaciju servisera | Jedna obavijest, kraće trajanje, uvijek gore |
+| 1 | Vodič ostaje na koraku 1 ako se korak preskoči | Kasniji urađeni korak označava raniji kao prođen |
+| 1 | Pločica vodiča prekrivala je dugmad kontrolne liste na telefonu | Kompaktna pločica „Vodič 3/5” |
+| 1 | Kartice uređaja na telefonu skučene zbog dugmeta sa strane | Dugme `Skeniraj QR` preko cijele širine ispod |
+| 1 | Izvještaj predugačak kada je sve uredno | Jedan red „Sve stavke demo obrasca (6/6): Uredno”; tabela samo za izuzetke |
+| 1 | Trajanje posjete se nije mijenjalo s brojem uređaja | +30 min po uređaju (do 3 h), opcije 2,5 h i 3 h |
+| 2 | Kolizija termina bila je ispod ruba modala na telefonu, vidjelo se samo sivo dugme | Poruka i „Uzmi HH:MM” u podnožju modala; početni termin se automatski pomjeri na slobodan |
+| 2 | Vodič na pregledu vlasnika zauzimao je cijeli ekran telefona | Na telefonu samo trenutni korak; kad je završen, samo poruka |
+| 2 | Nejasno koji je uređaj „glavni” na nalogu | Oznaka „Glavni uređaj (iz zahtjeva / plana)” |
+| 3 | Na kartici uređaja nije se vidjelo da objekat ima više uređaja | Polje „Na istom objektu” s linkovima |
+| 3 | Bez novih overflowa, grešaka ni preklapanja | — |
 
 ## Matrica provjera iz 04-PROVJERE-DEMOA.md
 
 | ID | Rezultat | Kako |
 | --- | --- | --- |
-| D01 | ✅ lokalno / ⚠️ deploy | Novi kod je u `servisloop-hvac-demo` u repou `tvkuca1113-art/Servisloopklima` (remote provjeren). Klon originala samo za čitanje ima push URL `DISABLED_READ_ONLY`, nema lokalnih izmjena, HEAD = `6e91257…` = pregledani commit = trenutni `origin/HEAD`. Nema `.vercel`, `.env` ni `vercel.json` iz originala. Novi Vercel projekat **nije kreiran**: API je vratio 403 za kreiranje projekta i za deployment. Original nije korišten kao zaobilaznica. |
-| D02 | ✅ | Početna: DEMO traka i rečenica „Ovo je pokazni primjer izgleda i načina rada…” (E2E) |
-| D03 | ✅ | 19 ruta direktno, HTTP 200 (E2E) |
-| D04 | ✅ | Prekidač Vlasnik/Serviser/Kupac bez login forme; kupac bez interne navigacije (screenshotovi 02, 05, 10) |
-| D05 | ✅ | E2E filteri i brojke |
-| D06 | ✅ | E2E dodavanje/uređivanje; nema mrežnih upisa |
-| D07 | ✅ | E2E glavni tok |
-| D08 | ✅ | E2E + screenshot `20-kupac-forma-greske-mobile.png` |
-| D09 | ✅ | E2E tekst potvrde |
-| D10 | ✅ | E2E: preview, uklanjanje, 0 upload zahtjeva |
-| D11 | ✅ | E2E + `22-dodjela-kolizija-mobile.png` |
-| D12 | ✅ | E2E „U demo obrascu nedostaje” |
-| D13 | ✅ | E2E: status, aktivnost, izvještaj, novi rok |
-| D14 | ✅ | E2E poruke |
-| D15 | ✅ | E2E dekodiranje PNG i SVG; primjeri u `primjeri/` (lokalni URL `http://localhost:3100/...`) |
-| D16 | ✅ lokalno | Novi browser kontekst otvara karticu bez prijave. Na javnom domenu nije provjereno jer deploy nije izveden. |
-| D17 | ✅ | Tekst na kartici i u dokumentaciji; nema tvrdnje o sinhronizaciji |
-| D18 | ✅ | HTML print prikaz; dugme se zove `Štampaj primjer izvještaja` i poziva `window.print()`. Chromium `page.pdf()` iz print media dao je A4 PDF-ove (`primjeri/*.pdf`, 2 stranice za nalog s fotografijom). Vizuelno pregledano: čćšžđ ispravni, tabela i dugi tekst se ne režu, DEMO u headeru i footeru. |
-| D19 | ✅ | E2E reset i reload |
-| D20 | ✅ | Dugi naziv KL-009 i duga bilješka bez overflowa; prazna stanja (pretraga, zahtjevi, nalozi) |
-| D21 | ✅ djelimično | Modal: tastatura, Esc, povratak fokusa (E2E). Vidljiv focus ring i trajni labeli pregledani na screenshotovima. Čitač ekrana nije testiran. |
-| D22 | ✅ | 360/390/430: 0 px overflowa (E2E); sticky CTA i bottom nav pregledani na snimcima |
-| D23 | ✅ | 768/1280 E2E bez overflowa; 1440 screenshotovi |
-| D24 | ✅ | `contact: null` → „Za prilagođenu ponudu javite se osobi koja vam je poslala ovaj demo.” Nema mrtvog dugmeta. |
-| D25 | ✅ | lint/typecheck/build prošli; 0 runtime grešaka u konzoli u E2E i screenshot prolazima |
-| D26 | ✅ | E2E provjera zabranjenih fraza na porukama; statusi „Potvrđen u demou / Odbijen u demou” |
+| D01 | ✅ / ⚠️ | Novi kod je u repou `tvkuca1113-art/Servisloopklima`, folder `servisloop-hvac-demo`. Original je samo pročitan (HEAD `6e91257`, push onemogućen u klonu). Nema `.vercel`, `.env` ni `vercel.json` iz originala. Javnu adresu nisam mogao provjeriti iz okruženja (vidi rezime). |
+| D02–D03 | ✅ | E2E |
+| D04 | ✅ | Prekidač perspektiva; kupac bez interne navigacije, uz demo traku `Nazad na demo` i logo za početnu |
+| D05–D06 | ✅ | E2E |
+| D07 | ✅ | E2E glavni tok s posjetom od 3 uređaja |
+| D08–D10 | ✅ | E2E |
+| D11 | ✅ | E2E + `screenshots/tok/m-06b-kolizija.png` |
+| D12–D13 | ✅ | E2E (po uređaju i za cijelu posjetu) |
+| D14 | ✅ | E2E |
+| D15 | ✅ | E2E dekodiranje PNG i SVG; `primjeri/` (lokalni URL) |
+| D16 | ✅ lokalno | Novi kontekst otvara stranicu kupca bez prijave; javni domen nije provjeren iz okruženja |
+| D17 | ✅ | Objašnjenje na stranici kupca i u dokumentaciji |
+| D18 | ✅ | `Štampaj primjer izvještaja` → `window.print()`; Chromium PDF iz print prikaza (`primjeri/*.pdf`), čćšžđ ispravni |
+| D19–D20 | ✅ | E2E reset i reload; dugi nazivi i prazna stanja |
+| D21 | ✅ djelimično | Modal i fokus (E2E); radio dugmad u formama s tastaturom pregledana; čitač ekrana nije testiran |
+| D22–D23 | ✅ | E2E overflow 360–1280; snimci 390/1440 |
+| D24–D26 | ✅ | Kontakt pošten tekst; 0 grešaka u konzoli; nema lažnih statusa |
 
-## Kontrast (izračunato po WCAG formuli za stvarne kombinacije)
+Kontrast stvarnih kombinacija boja (WCAG formula) ostaje ≥4,7:1 za sav normalni tekst; tabela je u prethodnoj verziji izvještaja, a boje nisu mijenjane.
 
-| Kombinacija | Omjer |
-| --- | --- |
-| Glavni tekst #1D2939 na #F7F9FC | 13,94:1 |
-| Sekundarni #475467 na bijelom | 7,69:1 |
-| Pomoćni #667085 na bijelom / na #F7F9FC | 4,97:1 / 4,72:1 |
-| Bijelo na primarnom #2563EB (dugmad) | 5,17:1 |
-| Uredno #067647 na #ECFDF3 | 5,40:1 |
-| Pažnja #B54708 na #FFFAEB | 5,20:1 |
-| Kasni #B42318 na #FEF3F2 | 6,05:1 |
-| Info #1D4ED8 na #EFF4FF | 6,08:1 |
-| DEMO #6941C6 na #F4F3FF / bijelo na #6941C6 | 6,02:1 / 6,62:1 |
-| Navigacija #E4E7EC / #98A2B3 na #101828 | 14,32:1 / 6,89:1 |
+## Screenshotovi
 
-Svi statusi uz boju imaju tekst i ikonu.
+- `screenshots/01…13-*-desktop.png` i `*-mobile.png`: glavne stranice.
+- `screenshots/tok/`: novi tok (`d-` = 1440 px, `m-` = 390 px):
+  - `01` kartica kupca, `01b` objašnjenje, `02–04` prijava kvara, greška, potvrda;
+  - `06/06b` dodjela s uređajima na objektu i kolizijom, `07` nalog kod vlasnika;
+  - `08–09` posjeta servisera, `10` skeniranje, `11` pogrešan uređaj, `12–13` unos i „Sve uredno”;
+  - `15–16` završetak, `17` izvještaj, `18` status kod kupca, `19` pregled.
 
-## Screenshotovi (`screenshots/`)
-
-Stvarno izgrađeni ekrani, Chromium headless, `bs-BA`, `Europe/Sarajevo`:
-- `01…13-*-desktop.png` (1440×900, full page) i `01…13-*-mobile.png` (390×844 @2x, full page): početna, vlasnički pregled, uređaji, TP-001, kartica kupca, zakazivanje, raspored, zahtjevi, nalozi, serviser, izvještaj, poruke, naljepnica.
-- `20-kupac-forma-greske-mobile.png`, `21-kupac-potvrda-mobile.png`, `22-dodjela-kolizija-mobile.png`, `23-serviser-danas-mobile.png`, `24-serviser-nalog-mobile.png` (duga bilješka + fotografija), `25-serviser-zavrseno-mobile.png`, `26-izvjestaj-mobile.png`.
-
-Napomena: na full-page snimcima fiksni elementi (bočni meni, donja navigacija, vodič, sticky dugme) se pojavljuju na poziciji prvog ekrana. To je artefakt snimanja, ne izgled stranice pri skrolanju.
-
-## Primjeri (`primjeri/`)
-
-- `qr-TP-001-demo.png` (512 px, dekodiran: `http://localhost:3100/demo/kupac/TP-001`), `qr-TP-001-demo.svg`.
-- `primjer-izvjestaja-NAL-0102.pdf`, `primjer-izvjestaja-iz-toka.pdf`, `naljepnica-TP-001.pdf`: PDF iz browser print prikaza (isti mehanizam kao „Sačuvaj kao PDF”).
-- QR primjeri vode na lokalni server s kojeg su generisani. Za javni domen treba ih ponovo generisati nakon deploya (`BASE_URL=https://… node scripts/flow-captures.mjs`).
+Na full-page snimcima fiksni elementi (donja navigacija, sticky dugme, vodič) pojavljuju se na poziciji prvog ekrana. To je artefakt snimanja.
 
 ## Šta NIJE provjereno
 
-- **Javni HTTPS link**: zaseban deploy nije izveden (Vercel 403 na kreiranje projekta; u okruženju nema Vercel CLI ni tokena). Koraci za objavu su u README-u.
-- **URL i dekodiranje provjereni; fizički scan nije izveden.** Ni telefonom ni sa štampane naljepnice.
-- Stvarni iOS Safari / Android Chrome (samo emulacija u Chromiumu). Na snimcima `<input type="date">` prikazuje `mm/dd/yyyy` jer headless Chromium koristi en-US format. Stvarni preglednik prikazuje lokalni format korisnika.
-- Stvarni sistemski dijalog štampe (provjeren print CSS i PDF iz Chromiuma, ne fizički štampač).
-- Čitač ekrana (NVDA/VoiceOver).
-- Safe-area na uređaju s notch-om (CSS `env(safe-area-inset-bottom)` postoji, nije provjeren na fizičkom uređaju).
+- **Objavljena verzija na Vercelu** nije dostupna iz ovog okruženja (proxy i Vercel 403). Nakon pusha na `main` treba provjeriti da se novi deploy pokrenuo.
+- **Fizička kamera telefona i fizička naljepnica.** Skener je provjeren emuliranom kamerom u Chromiumu, ne stvarnim telefonom. Na telefonu kamera radi samo preko HTTPS-a i uz dozvolu za kameru.
+- Stvarni iOS Safari / Android Chrome, čitač ekrana, fizički štampač.
+- Headless Chromium prikazuje datum kao `mm/dd/yyyy`; stvarni preglednik prikazuje lokalni format.

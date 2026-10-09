@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarCheck, ClipboardList, LayoutDashboard } from 'lucide-react';
+import { ArrowLeft, CalendarCheck, ClipboardList, LayoutDashboard } from 'lucide-react';
 
 import { brand } from '@/config/brand';
 import { cn } from '@/lib/cn';
@@ -64,13 +64,27 @@ export function TechShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Kupac preko QR-a: jednostavan ekran, bez interne navigacije firme. */
+/** Kupac preko QR-a: demo traka s povratkom, zatim stranica koju kupac vidi. */
 export function CustomerShell({ children }: { children: React.ReactNode }) {
   const { ready } = useDemo();
   return (
-    <div className="min-h-dvh bg-bg">
-      <DemoBar />
-      <main className="mx-auto w-full max-w-[480px] px-4 pt-5 pb-16">{ready ? children : <LoadingScreen />}</main>
+    <div className="min-h-dvh bg-[#eef1f6]">
+      <header className="no-print bg-nav text-white" data-testid="customer-demo-header">
+        <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-2 px-3 py-2 sm:px-6">
+          <Link href="/" className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg pr-2" aria-label={`${brand.productName} — početna stranica`}>
+            <Logo dark compact />
+            <span className="hidden truncate text-sm font-semibold sm:inline">{brand.productName}</span>
+            <span className="truncate text-sm text-nav-muted">· Prikaz kupca</span>
+          </Link>
+          <Link href="/demo" className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-[10px] border border-white/20 px-3 text-sm font-semibold hover:bg-white/10">
+            <ArrowLeft className="size-4" aria-hidden /> Nazad na demo
+          </Link>
+        </div>
+        <DemoBar dark />
+      </header>
+      <main id="sadrzaj" className="mx-auto w-full max-w-[1200px] px-0 pb-10 sm:px-6 lg:pt-6">
+        {ready ? children : <LoadingScreen />}
+      </main>
     </div>
   );
 }

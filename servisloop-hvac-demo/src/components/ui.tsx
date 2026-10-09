@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { AlertTriangle, CheckCircle2, Circle, Clock, Loader2, MinusCircle, X, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Circle, Clock, Info, Loader2, MinusCircle, X, XCircle } from 'lucide-react';
 import { forwardRef, useEffect, useId, useRef } from 'react';
 
 import { cn } from '@/lib/cn';
@@ -263,7 +263,7 @@ export function EmptyState({ title, children, action }: { title: string; childre
 }
 
 export function Notice({ tone = 'info', title, children, className }: { tone?: Tone; title?: string; children: React.ReactNode; className?: string }) {
-  const Icon = tone === 'ok' ? CheckCircle2 : tone === 'danger' ? AlertTriangle : tone === 'warn' ? AlertTriangle : Circle;
+  const Icon = tone === 'ok' ? CheckCircle2 : tone === 'danger' ? AlertTriangle : tone === 'warn' ? AlertTriangle : Info;
   return (
     <div className={cn('flex gap-3 rounded-xl border px-4 py-3 text-sm', TONES[tone], className)} role={tone === 'ok' ? 'status' : undefined}>
       <Icon className="mt-0.5 size-[18px] shrink-0" aria-hidden />

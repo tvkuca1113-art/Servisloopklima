@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useId, useMemo, useState } from 'react';
 
-import { addDays, formatLong, weekdayName, type CivilDate } from '@/lib/dates';
+import { addDays, diffDays, formatLong, relativeDays, weekdayName, type CivilDate } from '@/lib/dates';
 import { deviceTitle, endTime, findCollision, isOpen, lookup, suggestFreeSlot } from '@/lib/derive';
 import { useDemo } from '@/lib/store';
 
@@ -54,6 +54,7 @@ export function AssignModal({ target, onClose, onDone }: { target: AssignTarget 
   const [start, setStart] = useState('09:00');
   const [duration, setDuration] = useState(90);
   const [dateError, setDateError] = useState<string | null>(null);
+  const [extra, setExtra] = useState<string[]>([]);
 
   useEffect(() => {
     if (!ctx) return;
@@ -61,12 +62,26 @@ export function AssignModal({ target, onClose, onDone }: { target: AssignTarget 
     setDate(ctx.date);
     setStart(ctx.start);
     setDuration(ctx.duration);
+    // Ostali uređaji na istom objektu kojima servis uskoro ističe (≤ 90 dana) predlažu se za istu posjetu.
+    const main = state.devices.find((d) => d.id === ctx.deviceId);
+    const nearby = state.devices.filter((d) => main && d.id !== main.id && d.locationId === main.locationId);
+    const suggested = nearby.filter((d) => diffDays(d.nextServiceOn, today) <= 90).map((d) => d.id);
+    setExtra(suggested);
+    const dur = Math.min(180, ctx.duration + 30 * suggested.length);
+    setDuration(dur);
+    // Ako predloženi početak već zauzima drugi nalog istog servisera, ponudi prvi slobodan termin.
+    if (findCollision(state, ctx.technicianId, ctx.date, ctx.start, dur, ctx.ignore)) {
+      const free = suggestFreeSlot(state, ctx.technicianId, ctx.date, dur, ctx.ignore);
+      if (free) setStart(free);
+    }
     setDateError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx]);
 
   if (!ctx) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
 
   const device = L.device(ctx.deviceId);
+  const nearby = target?.mode === 'order' || !device ? [] : state.devices.filter((d) => d.id !== device.id && d.locationId === device.locationId);
   const collision = date ? findCollision(state, tech, date, start, duration, ctx.ignore) : null;
   const collisionDevice = collision ? L.device(collision.order.deviceId) : undefined;
   const suggestion = collision ? suggestFreeSlot(state, tech, date, duration, ctx.ignore) : null;
@@ -79,7 +94,7 @@ export function AssignModal({ target, onClose, onDone }: { target: AssignTarget 
       return;
     }
     if (collision || !ctx || !target) return;
-    const schedule = { technicianId: tech, date, start, durationMin: duration };
+    const schedule = { technicianId: tech, date, start, durationMin: duration, extraDeviceIds: target.mode === 'order' ? [] : extra };
     let orderId: string | null = null;
     if (target.mode === 'request') orderId = confirmRequest(target.requestId, schedule);
     else if (target.mode === 'order') {
@@ -107,6 +122,16 @@ export function AssignModal({ target, onClose, onDone }: { target: AssignTarget 
       }
       footer={
         <>
+          {collision ? (
+            <p className="order-last text-sm font-semibold text-warn sm:order-first sm:mr-auto sm:self-center" role="status">
+              Termin se preklapa s {collision.order.id}.{' '}
+              {suggestion ? (
+                <button type="button" className="underline underline-offset-2" onClick={() => setStart(suggestion)}>
+                  Uzmi {suggestion}
+                </button>
+              ) : null}
+            </p>
+          ) : null}
           <Button variant="secondary" onClick={onClose}>
             Odustani
           </Button>
@@ -123,6 +148,40 @@ export function AssignModal({ target, onClose, onDone }: { target: AssignTarget 
           submit();
         }}
       >
+        {nearby.length ? (
+          <fieldset className="rounded-xl border border-line p-3">
+            <legend className="px-1 text-sm font-semibold">Uređaji u istoj posjeti</legend>
+            <p className="text-[13px] text-ink-2">Na objektu „{L.deviceLocation(device!)?.name}” su još {nearby.length} uređaja. Jedan dolazak — serviser na licu mjesta skenira QR svakog uređaja.</p>
+            <ul className="mt-2 space-y-1">
+              <li className="flex min-h-10 items-center gap-2 text-sm">
+                <input type="checkbox" checked disabled className="size-5 accent-[var(--color-primary)]" aria-label={`${device!.id} (iz zahtjeva)`} />
+                <span>
+                  <span className="font-semibold">{device!.id}</span> · {device!.name} <span className="text-ink-3">(iz zahtjeva)</span>
+                </span>
+              </li>
+              {nearby.map((d) => (
+                <li key={d.id}>
+                  <label className="flex min-h-10 cursor-pointer items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={extra.includes(d.id)}
+                      onChange={(e) => {
+                        const on = e.target.checked;
+                        setExtra((x) => (on ? [...x, d.id] : x.filter((y) => y !== d.id)));
+                        setDuration((m) => Math.max(60, Math.min(180, m + (on ? 30 : -30))));
+                      }}
+                      className="size-5 accent-[var(--color-primary)]"
+                    />
+                    <span>
+                      <span className="font-semibold">{d.id}</span> · {d.name} <span className="text-ink-3">· servis {relativeDays(d.nextServiceOn, today)}</span>
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </fieldset>
+        ) : null}
+
         <fieldset>
           <legend className="mb-2 text-sm font-semibold">Serviser</legend>
           <div className="grid gap-2 sm:grid-cols-2">
@@ -173,6 +232,8 @@ export function AssignModal({ target, onClose, onDone }: { target: AssignTarget 
               <option value={60}>1 sat</option>
               <option value={90}>1 sat i 30 min</option>
               <option value={120}>2 sata</option>
+              <option value={150}>2 sata i 30 min</option>
+              <option value={180}>3 sata</option>
             </select>
           </Field>
         </div>

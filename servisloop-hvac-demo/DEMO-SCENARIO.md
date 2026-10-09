@@ -5,68 +5,91 @@
 ## Za koga i zašto
 
 Firma koja ugrađuje i servisira klime i toplotne pumpe za nekoliko minuta vidi:
-- kako bi pratila kupce, lokacije i uređaje s rokovima servisa;
-- kako bi kupac preko QR koda na uređaju zakazao servis ili prijavio kvar;
-- kako bi vlasnik rasporedio posao serviseru;
-- kako bi serviser na telefonu evidentirao obavljeni posao;
-- kako izgleda servisni izvještaj i sljedeći rok.
+- kako bi pratila kupce, objekte i uređaje s rokovima servisa;
+- kako bi kupac skenirao QR na uređaju i jednim dodirom prijavio kvar ili zakazao servis;
+- kako bi vlasnik rasporedio posao, s jednim dolaskom za sve uređaje na objektu;
+- kako bi serviser na objektu skenirao svaki uređaj, bez zabune i bez unosa na pogrešan uređaj;
+- kako izgleda izvještaj i sljedeći rok.
 
 ## Proba za pet minuta (u istom tabu)
 
 Otvorite `/demo`. Na vrhu je vodič **Pogledaj kako bi servis tekao**, koji prati stvarni napredak. Na ostalim ekranima vodič je mala pločica dolje desno.
 
-1. **Otvori primjer uređaja.** Otvorite `TP-001 · Demo kuća Tuzla` (Toplotna pumpa zrak–voda). Pogledajte prethodni i sljedeći servis, interval (DEMO postavka), servisnu historiju i QR kod.
-2. **Pogledaj QR i prikaz kupca.** Kliknite `Pogledaj prikaz kupca`. To je ono što kupac vidi kada skenira QR: bez prijave i bez interne navigacije firme.
-3. **Simuliraj zahtjev za servis.** `Pogledaj primjer zakazivanja` → popunite obrazac (ili `Popuni primjerom`) → `Simuliraj slanje zahtjeva`. Potvrda glasi: *Prikazan je primjer zahtjeva DEMO-001. Nije poslan servisnoj firmi.*
-4. **Kao vlasnik dodijeli servisera.** `Pogledaj kako ga vidi vlasnik` → `Potvrdi i dodijeli servisera`. Odaberite servisera, datum i vrijeme.
-   - Za prikaz kolizije odaberite danas, Lejla Kovačević, 09:00. U primjeru je već zauzeta, pa se pojavi *Demo kolizija termina* s prijedlogom slobodnog termina ili drugog servisera.
-   - Savjet: s današnjim datumom nalog se odmah vidi u prikazu servisera.
-5. **Kao serviser završi primjer i pogledaj izvještaj.** `Otvori kao serviser` → `Pokreni demo nalog` → kontrolna lista (`Uredno / Potrebna pažnja / Nije primjenjivo`), bilješka, fotografija (samo lokalni pregled) i preporuka → `Završi demo nalog`. Ako nešto nedostaje, demo navede šta, a nalog se ipak može završiti. Zatim `Pogledaj primjer izvještaja` → `Štampaj primjer izvještaja` (u dijalogu za štampu može se odabrati „Sačuvaj kao PDF”).
+1. **Otvori primjer uređaja.** `TP-001 · Demo kuća Tuzla` (Toplotna pumpa zrak–voda). Pogledajte rok, interval (DEMO postavka), historiju, QR kod i „Na istom objektu” (KL-012 i KL-015).
+2. **Pogledaj QR i prikaz kupca.** `Pogledaj prikaz kupca`.
+   - Na računaru je lijevo objašnjenje u 5 koraka (*QR naljepnica → kupac skenira → otvara se stranica → prijava → stiže vlasniku*), a desno stranica kako je kupac vidi na telefonu.
+   - QR kod lijevo možete skenirati svojim telefonom.
+   - Gore su uvijek `Nazad na demo` i logo za povratak na početnu.
+3. **Kao kupac prijavi kvar ili zakaži servis.**
+   - **Prijavi kvar:** izbor problema („Ne grije”, „Curi voda”…), „Ne radi uopšte” / „Radi, ali s problemom”, opcionalno opis i fotografija → `Simuliraj prijavu kvara`.
+   - **Zakaži servis:** datum i termin (`Popuni primjerom`) → `Simuliraj slanje zahtjeva`.
+   - Podaci kupca su već popunjeni iz evidencije firme (`Promijeni` ako treba). Potvrda jasno kaže da ništa nije poslano. Kupac vidi status svoje prijave.
+4. **Kao vlasnik dodijeli servisera.** `Pogledaj kako ga vidi vlasnik` → `Potvrdi i dodijeli servisera`.
+   - U istu posjetu su predloženi i ostali uređaji na objektu kojima uskoro ističe servis (KL-012, KL-015). Trajanje se prilagodi broju uređaja.
+   - Prikaz kolizije: danas, Lejla Kovačević, 09:00 → *Demo kolizija termina* i prijedlog slobodnog termina.
+5. **Kao serviser skeniraj uređaje, završi i pogledaj izvještaj.** `Otvori kao serviser` → `Stigao sam — pokreni posjetu`.
+   - Unos za uređaj je **zaključan dok se njegov QR ne skenira**: `Skeniraj QR uređaja` (prava kamera na telefonu), dodir na demo naljepnicu ili, ako je naljepnica oštećena, ručni unos oznake (bilježi se u izvještaju).
+   - Probajte i naljepnicu „drugi objekat”: *Pogrešan uređaj … Ništa nije upisano.*
+   - Za svaki uređaj: `Sve uredno` jednim dodirom, pa promijenite samo izuzetke. Kratak opis je obavezan samo uz „Potrebna pažnja”. Fotografija i napomena su opcionalne.
+   - Na kraju preporuka jednim dodirom → `Završi demo nalog` → `Pogledaj primjer izvještaja` → `Štampaj primjer izvještaja` („Sačuvaj kao PDF”). Trajanje posjete se bilježi automatski.
 
-Nakon toga vlasnički pregled pokazuje promijenjene brojke, aktivnost „Završen demo nalog …” i novi rok servisa uređaja. `Počni ponovo` ili `Vrati početni primjer` vraća početno stanje.
+Nakon toga vlasnički pregled pokazuje promijenjene brojke i aktivnosti (ko je i kako identifikovao koji uređaj), a uređaji imaju nove rokove. Kupac na kartici vidi „Servis obavljen”. `Počni ponovo` ili `Vrati početni primjer` vraća početno stanje.
+
+## Šta serviser zaista mora unijeti
+
+| Situacija | Unos |
+| --- | --- |
+| Sve uredno | Skeniranje QR-a + `Sve uredno` + `Sačuvaj` (3 dodira po uređaju) |
+| Nešto treba pažnju | Isto + jedan odabir „Potrebna pažnja” + jedna rečenica |
+| Na kraju posjete | Jedna preporuka (gotovi prijedlozi) + `Završi` |
+| Opcionalno | Fotografija, napomena, materijal, ilustrativna potvrda kupca |
+
+Datum, vrijeme, serviser, uređaj, lokacija i trajanje upisuju se automatski.
 
 ## Ostalo što se može klikati
 
-- **Uređaji:** pretraga (naziv, tip, kupac, grad), filter vrste i statusa roka, `Dodaj demo uređaj`, `Uredi`, `Planiraj demo servis`.
+- **Uređaji:** pretraga (naziv, tip, kupac, grad), filter vrste i statusa roka, `Dodaj demo uređaj`, `Uredi`, `Planiraj demo servis` (s ostalim uređajima na objektu).
 - **QR:** `Preuzmi QR PNG`, `Preuzmi QR SVG`, `Kopiraj demo link`, `Štampaj naljepnicu`.
-- **Raspored:** sedmica na širokom ekranu i dnevne kartice na užem; odabir datuma, sedmice i servisera, prikaz otkazanih, dodjela naloga bez servisera.
-- **Zahtjevi:** statusi `Na čekanju / Potvrđen u demou / Odbijen u demou`; potvrda s dodjelom ili odbijanje u demou.
-- **Radni nalozi:** filter po statusu (`Planiran / U radu / Završen / Otkazan`) i serviseru, detalj, promjena servisera, `Otkaži u demou`.
-- **Serviser (telefon):** `Moji demo poslovi danas`, izbor servisera (demo perspektiva, bez prijave), narednih 7 dana, moji nalozi.
-- **Kupac:** primjer zakazivanja i primjer prijave kvara (opis, opcionalni kod greške, fotografija JPG/PNG/WEBP do 5 MB, samo lokalni pregled).
-- **Izvještaji:** tri unaprijed završena primjera i svaki nalog završen u probi.
-- **Primjeri poruka:** potvrda zahtjeva, potvrda termina, završen servis i podsjetnik, svi s oznakom **PRIMJER — NIJE POSLANO**. `Pogledaj primjer podsjetnika` s kartice uređaja otvara podsjetnik za taj uređaj.
+- **Raspored:** sedmica na širokom ekranu i dnevne kartice na užem; datum, sedmica, serviser, otkazani; dodjela naloga bez servisera.
+- **Zahtjevi:** hitne prijave („Uređaj ne radi”) su prve; potvrda s dodjelom ili odbijanje u demou.
+- **Radni nalozi:** filteri, detalj sa svim uređajima posjete i statusom identifikacije, promjena servisera, `Otkaži u demou`.
+- **Serviser (telefon):** `Moji demo poslovi danas` (objekat i broj uređaja), narednih 7 dana, moji nalozi.
+- **Primjeri poruka:** potvrda zahtjeva, potvrda termina, završen servis i podsjetnik, svi s oznakom **PRIMJER — NIJE POSLANO**.
 
 ## QR na telefonu
 
-QR kod sadrži apsolutnu adresu kartice na sajtu na kojem je demo otvoren (npr. `https://<novi-domen>/demo/kupac/TP-001`). Skeniranje otvara pokaznu karticu uređaja bez prijave.
-
-> QR otvara pokaznu karticu uređaja. Za cijeli povezani primjer vratite se na demo vodič.
+QR kod sadrži adresu kartice uređaja na sajtu na kojem je demo otvoren (npr. `https://<domen>/demo/kupac/TP-001`).
+- **Kupac** ga skenira običnom kamerom telefona i dobija stranicu uređaja, bez prijave.
+- **Serviser** isti kod skenira unutar aplikacije. Aplikacija iz adrese čita oznaku uređaja i provjerava da je na nalogu.
 
 Zahtjev poslan s telefona **ne pojavljuje se** na računaru: svaki preglednik ima svoju lokalnu probu. Cijeli povezani tok radi u jednom tabu.
 
 ## Šta je simulacija
 
-- slanje zahtjeva i prijave kvara;
+- slanje zahtjeva i prijave kvara, status prijave kod kupca;
 - potvrda, odbijanje, dodjela servisera i kolizija termina;
-- pokretanje i završetak naloga, kontrolna lista, potvrda kupca (ilustrativna rubrika);
+- posjeta, identifikacija uređaja, kontrolna lista i potvrda kupca (ilustrativna rubrika);
 - poruke i podsjetnici (ništa se ne šalje);
 - rokovi i intervali (DEMO postavke, ne preporuka proizvođača).
 
 ## Šta se izrađuje za firmu nakon dogovora
 
-- stvarni kupci, uređaji i servisna historija;
+- stvarni kupci, objekti, uređaji i servisna historija;
 - korisnički računi i pristup za vlasnika i servisere;
-- trajno čuvanje i rad s više uređaja;
+- trajno čuvanje i rad s više uređaja (telefon servisera ↔ kancelarija);
 - stvarne obavijesti kroz dogovorene kanale;
 - servisni obrasci i intervali koje potvrdi firma;
-- finalni izgled, kontakt i naziv firme.
+- finalni izgled, kontakt i naziv firme, štampa pravih naljepnica.
 
 To su predviđene mogućnosti, ne funkcije koje su već aktivne.
 
 ## Izmišljeni podaci u primjeru
 
 - Firma: **Primjer Klima d.o.o. — demo firma**.
-- 6 kupaca, 8 lokacija, 24 uređaja (16 klima, 8 toplotnih pumpi), 2 servisera.
-- Zahtjevi: 2 na čekanju, 1 potvrđen i 1 odbijen. Nalozi: današnji, naredni, jedan bez servisera, jedan otkazan i 3 završena s izvještajima.
+- 6 kupaca, 8 objekata, 24 uređaja (16 klima, 8 toplotnih pumpi), 2 servisera.
+- Objekti s više uređaja:
+  - *Demo kuća Tuzla*: TP-001, KL-012, KL-015;
+  - *Demo poslovni prostor*: 4 uređaja;
+  - *Demo pansion — depandansa*: 3 uređaja.
+- Današnje posjete s 2 uređaja: NAL-0111 i NAL-0112.
 - Modeli i serijski brojevi označeni su kao demonstracijski. E-mail adrese su na `example.test`. Telefoni nisu stvarni i nisu klikabilni.
