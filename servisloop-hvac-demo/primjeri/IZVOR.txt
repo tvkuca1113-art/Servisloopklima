@@ -1,0 +1,2 @@
+Generisano iz http://localhost:3100 skriptom scripts/flow-captures.mjs.
+QR kodovi vode na http://localhost:3100/demo/kupac/TP-001 (adresa servera na kojem je skripta pokrenuta).
