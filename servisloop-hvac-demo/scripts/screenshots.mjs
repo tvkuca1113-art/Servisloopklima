@@ -21,6 +21,9 @@ const pages = [
   ['11-izvjestaj-NAL-0101', '/demo/izvjestaji/NAL-0101'],
   ['12-poruke', '/demo/poruke?primjer=podsjetnik&uredjaj=TP-001'],
   ['13-naljepnica', '/demo/naljepnica/TP-001'],
+  ['14-plan-servisa', '/demo/plan'],
+  ['15-prazne-naljepnice', '/demo/naljepnice'],
+  ['16-kupac-prijedlog-termina', '/demo/kupac/TP-002?prijedlog=PRJ-001'],
 ];
 
 const viewports = [

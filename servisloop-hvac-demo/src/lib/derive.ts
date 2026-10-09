@@ -1,5 +1,6 @@
 import { diffDays, timeToMinutes, type CivilDate } from './dates';
-import type { DemoState, Device, WorkOrder } from './types';
+import { addDays, weekday } from './dates';
+import type { DemoState, Device, ProposalSlot, WorkOrder } from './types';
 
 export type DueStatus = 'zakasnio' | 'sedam' | 'uskoro' | 'uredu';
 
@@ -45,10 +46,15 @@ export function deviceTitle(state: DemoState, d: Device): string {
   return `${d.id} · ${l?.name ?? 'Lokacija'}`;
 }
 
+export function isActive(d: Device): boolean {
+  return d.status !== 'ugradnja';
+}
+
 export function kpis(state: DemoState) {
   const today = state.anchor;
-  const overdue = state.devices.filter((d) => dueStatus(d, today) === 'zakasnio');
-  const next7 = state.devices.filter((d) => dueStatus(d, today) === 'sedam');
+  const active = state.devices.filter(isActive);
+  const overdue = active.filter((d) => dueStatus(d, today) === 'zakasnio');
+  const next7 = active.filter((d) => dueStatus(d, today) === 'sedam');
   const newRequests = state.requests.filter((r) => r.status === 'na_cekanju');
   const openOrders = state.workOrders.filter(isOpen);
   return { overdue, next7, newRequests, openOrders };
@@ -113,4 +119,52 @@ export function orderDevicesLabel(w: Pick<WorkOrder, 'deviceId' | 'items'>): str
 export function orderTitle(state: DemoState, w: WorkOrder): string {
   const l = state.locations.find((x) => x.id === w.locationId);
   return `${orderDevicesLabel(w)} · ${l?.name ?? 'Lokacija'}`;
+}
+
+/** Kod iz QR-a: uređaj (TP-001) ili prazna naljepnica iz kompleta (N-0001). */
+export type Resolved = { kind: 'device'; deviceId: string } | { kind: 'label'; code: string; deviceId: string | null };
+
+export function resolveCode(state: DemoState, code: string): Resolved {
+  if (code.startsWith('N-')) {
+    const label = state.labels.find((l) => l.code === code);
+    return { kind: 'label', code, deviceId: label?.deviceId ?? null };
+  }
+  return { kind: 'device', deviceId: code };
+}
+
+/**
+ * Prijedlog slobodnih termina za kupca: radni dani od `from`, 09:00 ili 13:00,
+ * prvi serviser koji je slobodan. Jedan termin po danu.
+ */
+export function suggestSlots(state: DemoState, from: CivilDate, count: number, durationMin: number): ProposalSlot[] {
+  const out: ProposalSlot[] = [];
+  let day = from;
+  for (let i = 0; i < 30 && out.length < count; i++, day = addDays(day, 1)) {
+    const wd = weekday(day);
+    if (wd === 0 || wd === 6) continue;
+    const start = out.length % 2 === 0 ? ['09:00', '13:00'] : ['13:00', '09:00'];
+    let found: ProposalSlot | null = null;
+    for (const t of start) {
+      for (const tech of state.technicians) {
+        if (!findCollision(state, tech.id, day, t, durationMin)) {
+          found = { date: day, start: t, technicianId: tech.id };
+          break;
+        }
+      }
+      if (found) break;
+    }
+    if (found) out.push(found);
+  }
+  return out;
+}
+
+/** Aktivni uređaji kojima rok ističe u narednih `days` dana ili je prošao. */
+export function dueSoon(state: DemoState, days = 30): Device[] {
+  const limit = addDays(state.anchor, days);
+  return state.devices.filter((d) => isActive(d) && d.nextServiceOn <= limit).sort((a, b) => (a.nextServiceOn < b.nextServiceOn ? -1 : 1));
+}
+
+/** Da li uređaj već ima otvoren nalog (servis je ugovoren). */
+export function hasOpenOrder(state: DemoState, deviceId: string): WorkOrder | undefined {
+  return state.workOrders.find((w) => isOpen(w) && w.items.some((i) => i.deviceId === deviceId));
 }

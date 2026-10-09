@@ -49,6 +49,41 @@ export interface Device {
   nextServiceOn: CivilDate;
   note: string;
   history: HistoryEntry[];
+  /** `ugradnja` = uređaj je najavljen (naljepnica odštampana), ali još nije ugrađen. */
+  status: 'aktivan' | 'ugradnja';
+  /** Kod prazne naljepnice iz rezervnog kompleta, ako je uređaj povezan na licu mjesta. */
+  label: string | null;
+}
+
+/** Prazna QR naljepnica iz kompleta koji vlasnik unaprijed odštampa. */
+export interface BlankLabel {
+  code: string;
+  deviceId: string | null;
+}
+
+export interface ProposalSlot {
+  date: CivilDate;
+  start: string;
+  technicianId: string;
+}
+
+export type ProposalStatus = 'poslan' | 'prihvacen' | 'odbijen' | 'odgoden';
+
+/** Prijedlog termina servisa koji vlasnik šalje kupcu (simulacija poruke). */
+export interface Proposal {
+  id: string;
+  locationId: string;
+  deviceIds: string[];
+  dueOn: CivilDate;
+  channel: 'email' | 'sms';
+  slots: ProposalSlot[];
+  durationMin: number;
+  status: ProposalStatus;
+  chosen: number | null;
+  reason: string;
+  sentAt: number;
+  respondedAt: number | null;
+  workOrderId: string | null;
 }
 
 export type RequestKind = 'servis' | 'kvar';
@@ -111,7 +146,7 @@ export interface WorkOrder {
   items: OrderItem[];
   requestId: string | null;
   reason: string;
-  category: 'Redovni servis' | 'Prijava kvara' | 'Provjera nakon ugradnje';
+  category: 'Redovni servis' | 'Prijava kvara' | 'Provjera nakon ugradnje' | 'Ugradnja';
   date: CivilDate;
   start: string;
   durationMin: number;
@@ -152,7 +187,9 @@ export interface DemoState {
   devices: Device[];
   requests: ServiceRequest[];
   workOrders: WorkOrder[];
+  proposals: Proposal[];
+  labels: BlankLabel[];
   activity: Activity[];
   guide: GuideState;
-  counters: { request: number; workOrder: number; device: number };
+  counters: { request: number; workOrder: number; device: number; proposal: number; customer: number };
 }

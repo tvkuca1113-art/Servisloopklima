@@ -1,5 +1,6 @@
 'use client';
 
+import { ProposalModal } from '@/components/proposal-modal';
 import Link from 'next/link';
 import { AlertTriangle, ArrowRight, CalendarClock, ClipboardList, Inbox } from 'lucide-react';
 import { useState } from 'react';
@@ -19,6 +20,7 @@ export default function OwnerDashboard() {
   const k = kpis(state);
   const today = state.anchor;
   const [assign, setAssign] = useState<AssignTarget | null>(null);
+  const [proposalFor, setProposalFor] = useState<string | null>(null);
 
   const cards = [
     { label: 'Zakasneli servisi', value: k.overdue.length, hint: 'Uređaji kojima je prošao rok', href: '/demo/uredaji?status=zakasnio', icon: AlertTriangle, tone: 'text-danger bg-danger-soft' },
@@ -38,8 +40,8 @@ export default function OwnerDashboard() {
         subtitle="Primjer obaveza i rasporeda vaše firme."
         actions={
           <>
-            <ButtonLink href="/demo/raspored" variant="secondary">
-              Raspored
+            <ButtonLink href="/demo/plan" variant="secondary">
+              Plan servisa
             </ButtonLink>
             <ButtonLink href="/demo/uredaji/TP-001">Otvori uređaj TP-001</ButtonLink>
           </>
@@ -130,9 +132,14 @@ export default function OwnerDashboard() {
                       {d.typeLabel} · {loc?.city} · rok bio {formatShort(d.nextServiceOn)}
                     </p>
                   </div>
-                  <ButtonLink href={`/demo/uredaji/${d.id}`} variant="secondary" size="sm" className="self-start sm:self-center">
-                    Otvori uređaj
-                  </ButtonLink>
+                  <div className="flex flex-wrap gap-2 self-start sm:self-center">
+                    <Button size="sm" variant="secondary" onClick={() => setProposalFor(d.id)}>
+                      Prijedlog termina
+                    </Button>
+                    <ButtonLink href={`/demo/uredaji/${d.id}`} variant="secondary" size="sm">
+                      Otvori uređaj
+                    </ButtonLink>
+                  </div>
                 </li>
               );
             })}
@@ -214,6 +221,7 @@ export default function OwnerDashboard() {
       </div>
 
       <AssignModal target={assign} onClose={() => setAssign(null)} />
+      <ProposalModal deviceId={proposalFor} onClose={() => setProposalFor(null)} />
     </>
   );
 }

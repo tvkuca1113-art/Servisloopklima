@@ -7,6 +7,10 @@ const ROUTES = [
   '/demo/uredaji/TP-001',
   '/demo/uredaji/KL-009',
   '/demo/raspored',
+  '/demo/plan',
+  '/demo/naljepnice',
+  '/demo/kupac/N-0001',
+  '/demo/kupac/TP-002?prijedlog=PRJ-001',
   '/demo/zahtjevi',
   '/demo/nalozi',
   '/demo/nalozi/NAL-0111',
@@ -53,7 +57,7 @@ for (const width of [360, 390, 430, 768, 1280]) {
 
 test('modal: tastatura, Esc i povratak fokusa', async ({ page }) => {
   await page.goto('/demo/uredaji');
-  const opener = page.getByRole('button', { name: 'Dodaj demo uređaj' });
+  const opener = page.getByRole('button', { name: 'Postojeći uređaj u evidenciju' });
   await opener.focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog')).toBeVisible();

@@ -80,7 +80,7 @@ export function DeviceFormModal({ open, onClose, device, onSaved }: { open: bool
       toast({ title: DEMO_CHANGE, body: `Uređaj ${device.id} je izmijenjen u ovom primjeru.` });
       onSaved?.(device.id);
     } else {
-      const id = addDevice({ ...f, name: f.name.trim(), nextServiceOn: next, serial: `DEMO-SN-NOVI-${Date.now().toString().slice(-4)}`, idPrefix: f.kind === 'pumpa' ? 'TP' : 'KL' });
+      const id = addDevice({ ...f, name: f.name.trim(), nextServiceOn: next, serial: `DEMO-SN-NOVI-${Date.now().toString().slice(-4)}`, status: 'aktivan', label: null, idPrefix: f.kind === 'pumpa' ? 'TP' : 'KL' });
       toast({ title: DEMO_CHANGE, body: `Demo uređaj ${id} je dodan samo u ovaj primjer.` });
       onSaved?.(id);
     }
@@ -162,7 +162,7 @@ export function DeviceFormModal({ open, onClose, device, onSaved }: { open: bool
           <Field label="Datum ugradnje" htmlFor={`${uid}-installedOn`} required error={errors.installedOn}>
             <input id={`${uid}-installedOn`} type="date" max={today} value={f.installedOn} onChange={(e) => set('installedOn', e.target.value)} className={inputClass(Boolean(errors.installedOn))} aria-invalid={Boolean(errors.installedOn)} aria-describedby={describedBy('installedOn')} />
           </Field>
-          <Field label="Servisni interval (DEMO postavka)" htmlFor={`${uid}-interval`} required hint={nextPreview ? `Sljedeći servis u primjeru: ${formatLong(nextPreview)}` : undefined}>
+          <Field label="Servisni interval (DEMO postavka)" htmlFor={`${uid}-interval`} required hint={nextPreview ? `Prvi/sljedeći servis automatski u planu: ${formatLong(nextPreview)}` : undefined}>
             <select id={`${uid}-interval`} value={f.intervalMonths} onChange={(e) => set('intervalMonths', Number(e.target.value))} className={inputClass()}>
               {[6, 12, 24].map((m) => (
                 <option key={m} value={m}>

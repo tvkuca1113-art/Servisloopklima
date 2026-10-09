@@ -38,3 +38,20 @@ describe('demo podaci', () => {
     expect(findCollision(s, 't1', s.anchor, '09:00', 90)).toBeNull();
   });
 });
+
+describe('plan i prijedlozi u primjeru', () => {
+  const s = createInitialState('2026-10-09', Date.UTC(2026, 9, 9, 8));
+  it('budući nalozi i termini iz prijedloga padaju u radne dane i nisu u koliziji', () => {
+    const wd = (d: string) => new Date(`${d}T12:00:00Z`).getUTCDay();
+    for (const w of s.workOrders.filter((x) => x.date > s.anchor)) expect([0, 6]).not.toContain(wd(w.date));
+    const pending = s.proposals.find((p) => p.status === 'poslan')!;
+    for (const slot of pending.slots) {
+      expect([0, 6]).not.toContain(wd(slot.date));
+      expect(findCollision(s, slot.technicianId, slot.date, slot.start, pending.durationMin)).toBeNull();
+    }
+  });
+  it('ima komplet praznih naljepnica', () => {
+    expect(s.labels).toHaveLength(12);
+    expect(s.labels.every((l) => l.deviceId === null)).toBe(true);
+  });
+});

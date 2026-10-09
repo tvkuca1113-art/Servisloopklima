@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { AlertTriangle, ArrowLeft, CalendarPlus, Check, CheckCircle2, ChevronRight, MapPin, Pencil, Smartphone, Thermometer } from 'lucide-react';
 import { Suspense, useEffect, useId, useState } from 'react';
 
+import { CustomerProposal } from '@/components/customer-proposal';
 import { useGuideSteps } from '@/components/guide';
 import { PhotoPicker, type LocalPhoto } from '@/components/photo-picker';
 import { useQr } from '@/components/qr-panel';
@@ -13,11 +14,11 @@ import { brand } from '@/config/brand';
 import { cn } from '@/lib/cn';
 import { GUIDE_DEVICE_ID } from '@/lib/demo-data';
 import { formatLong, formatShort, relativeDays } from '@/lib/dates';
-import { dueStatus, endTime, lookup } from '@/lib/derive';
+import { dueStatus, endTime, lookup, resolveCode } from '@/lib/derive';
 import { useDemo } from '@/lib/store';
 import type { ServiceRequest } from '@/lib/types';
 
-type View = 'kartica' | 'servis' | 'kvar' | 'poslano';
+type View = 'kartica' | 'servis' | 'kvar' | 'poslano' | 'prijedlog';
 
 const SYMPTOMS = ['Ne grije', 'Ne hladi', 'Ne uključuje se', 'Curi voda', 'Čudan zvuk ili miris', 'Greška na ekranu', 'Drugo'];
 const SLOTS = ['Prijepodne (08–12)', 'Poslijepodne (12–16)', 'Svejedno'];
@@ -34,15 +35,20 @@ function validContact(v: string): boolean {
 
 function CustomerInner() {
   const { deviceId: raw } = useParams<{ deviceId: string }>();
-  const deviceId = decodeURIComponent(raw);
+  const code = decodeURIComponent(raw);
   const params = useSearchParams();
   const router = useRouter();
   const { state, setGuide } = useDemo();
+  // QR s prazne naljepnice (N-0001) vodi na uređaj s kojim je naljepnica povezana.
+  const resolved = resolveCode(state, code.toUpperCase());
+  const deviceId = resolved.kind === 'label' ? (resolved.deviceId ?? code) : code;
   const device = lookup(state).device(deviceId);
 
   const formParam = params.get('forma');
-  const [view, setView] = useState<View>(formParam === 'servis' || formParam === 'kvar' ? formParam : 'kartica');
+  const proposalParam = params.get('prijedlog');
+  const [view, setView] = useState<View>(proposalParam ? 'prijedlog' : formParam === 'servis' || formParam === 'kvar' ? formParam : 'kartica');
   const [sentId, setSentId] = useState<string | null>(null);
+  const [proposalId, setProposalId] = useState<string | null>(proposalParam);
 
   useEffect(() => {
     if (deviceId === GUIDE_DEVICE_ID && !state.guide.visitedCustomer) setGuide({ visitedCustomer: true });
@@ -54,10 +60,28 @@ function CustomerInner() {
   }, [view]);
 
   const go = (v: View, id?: string) => {
-    if (id) setSentId(id);
+    if (v === 'prijedlog' && id) setProposalId(id);
+    else if (id) setSentId(id);
     setView(v);
-    if (v !== 'poslano') router.replace(v === 'kartica' ? `/demo/kupac/${deviceId}` : `/demo/kupac/${deviceId}?forma=${v}`, { scroll: false });
+    if (v === 'prijedlog') router.replace(`/demo/kupac/${code}?prijedlog=${id ?? proposalId}`, { scroll: false });
+    else if (v !== 'poslano') router.replace(v === 'kartica' ? `/demo/kupac/${code}` : `/demo/kupac/${code}?forma=${v}`, { scroll: false });
   };
+
+  if (resolved.kind === 'label' && !resolved.deviceId && state.labels.some((l) => l.code === code.toUpperCase())) {
+    return (
+      <Card className="mx-4 mt-6 p-6 sm:mx-auto sm:max-w-md" data-testid="unlinked-label">
+        <p className="text-sm font-semibold text-ink-2">{brand.companyName}</p>
+        <h1 className="mt-1 text-xl font-bold">Naljepnica {code.toUpperCase()} još nije povezana s uređajem</h1>
+        <p className="mt-2 text-ink-2">
+          Ova naljepnica je iz kompleta servisne firme. Serviser je povezuje s uređajem pri ugradnji ili servisu — nakon toga ovdje se otvara stranica uređaja.
+        </p>
+        <p className="mt-2 text-sm text-ink-2">Serviser: u nalogu odaberite „Novi uređaj na objektu” i skenirajte ovu naljepnicu.</p>
+        <ButtonLink href="/demo/naljepnice" variant="secondary" className="mt-4">
+          Komplet praznih naljepnica (demo)
+        </ButtonLink>
+      </Card>
+    );
+  }
 
   if (!device) {
     return (
@@ -72,12 +96,14 @@ function CustomerInner() {
   }
 
   const step = view === 'kartica' ? 3 : view === 'poslano' ? 5 : 4;
+  const proposalStatus = view === 'prijedlog' && proposalId ? state.proposals.find((p) => p.id === proposalId)?.status : undefined;
+  const proposalStep = proposalStatus && proposalStatus !== 'poslan' ? 5 : 4;
 
   return (
     <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start lg:gap-10">
-      <Explainer deviceId={device.id} step={step} sentId={sentId} />
+      <Explainer deviceId={device.id} step={view === 'prijedlog' ? proposalStep : step} sentId={sentId} proposal={view === 'prijedlog'} />
       <PhoneFrame deviceId={device.id}>
-        <CustomerApp deviceId={device.id} view={view} sentId={sentId} go={go} />
+        <CustomerApp deviceId={device.id} view={view} sentId={sentId} proposalId={proposalId} go={go} />
       </PhoneFrame>
     </div>
   );
@@ -95,6 +121,14 @@ export default function CustomerPage() {
 /* Objašnjenje demoa (desktop: lijevo; telefon: sklopivo na vrhu)      */
 /* ------------------------------------------------------------------ */
 
+const PROPOSAL_STEPS = [
+  { title: 'Rok servisa se približava', text: 'Plan servisa ga računa automatski iz intervala.' },
+  { title: 'Firma šalje prijedlog termina', text: 'E-mail ili SMS s linkom i 2–3 slobodna termina.' },
+  { title: 'Kupac otvara link iz poruke', text: 'Ista stranica uređaja, bez prijave.' },
+  { title: 'Kupac bira termin ili odbija', text: 'Uz jasno objašnjenje šta znači odgađanje.' },
+  { title: 'Odgovor stiže vlasniku', text: 'Odabrani termin odmah postaje radni nalog.' },
+];
+
 const STEPS = [
   { title: 'Na uređaju je QR naljepnica', text: 'Firma je zalijepi pri ugradnji ili servisu.' },
   { title: 'Kupac je skenira kamerom telefona', text: 'Bez aplikacije, registracije i lozinke.' },
@@ -103,10 +137,10 @@ const STEPS = [
   { title: 'Zahtjev stiže vlasniku firme', text: 'Pojavi se u „Zahtjevi” i u pregledu vlasnika.' },
 ];
 
-function StepList({ step }: { step: number }) {
+function StepList({ step, proposal = false }: { step: number; proposal?: boolean }) {
   return (
     <ol className="space-y-1">
-      {STEPS.map((s, i) => {
+      {(proposal ? PROPOSAL_STEPS : STEPS).map((s, i) => {
         const n = i + 1;
         const done = n < step;
         const active = n === step;
@@ -132,7 +166,7 @@ function StepList({ step }: { step: number }) {
   );
 }
 
-function Explainer({ deviceId, step, sentId }: { deviceId: string; step: number; sentId: string | null }) {
+function Explainer({ deviceId, step, sentId, proposal }: { deviceId: string; step: number; sentId: string | null; proposal: boolean }) {
   const { state } = useDemo();
   const { url, png } = useQr(deviceId, 300);
   const guide = useGuideSteps();
@@ -147,11 +181,13 @@ function Explainer({ deviceId, step, sentId }: { deviceId: string; step: number;
       <details className="no-print group mx-3 my-3 rounded-xl border border-line bg-surface lg:hidden" data-testid="customer-explainer-mobile">
         <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 px-4 text-sm font-semibold">
           <Smartphone className="size-[18px] text-primary" aria-hidden />
-          <span className="flex-1">Demo: ovo je stranica koju kupac dobije skeniranjem QR koda (korak {step} od 5)</span>
+          <span className="flex-1">
+            Demo: ovo je stranica koju kupac dobije {proposal ? 'iz poruke s prijedlogom termina' : 'skeniranjem QR koda'} (korak {step} od 5)
+          </span>
           <ChevronRight className="size-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
         </summary>
         <div className="border-t border-line px-2 py-2">
-          <StepList step={step} />
+          <StepList step={step} proposal={proposal} />
           {sentId ? (
             <Link href={ownerLink} className={buttonClass('primary', 'sm', 'm-2')}>
               Pogledaj kako zahtjev stiže vlasniku
@@ -164,11 +200,13 @@ function Explainer({ deviceId, step, sentId }: { deviceId: string; step: number;
       {/* Desktop: objašnjenje lijevo */}
       <aside className="no-print hidden lg:block" aria-label="Kako radi prikaz kupca" data-testid="customer-explainer">
         <p className="text-sm font-semibold text-primary">Prikaz kupca</p>
-        <h1 className="mt-1 text-[28px] leading-tight font-bold tracking-tight">Ovo kupac vidi kada skenira QR kod na uređaju</h1>
+        <h1 className="mt-1 text-[28px] leading-tight font-bold tracking-tight">
+          {proposal ? 'Ovo kupac vidi kada otvori link iz poruke s prijedlogom termina' : 'Ovo kupac vidi kada skenira QR kod na uređaju'}
+        </h1>
         <p className="mt-2 text-ink-2">Desno je stranica u telefonu kupca. Probajte prijavu kvara ili zakazivanje — u istom tabu zahtjev zatim vidite kod vlasnika.</p>
 
         <div className="mt-5 rounded-2xl border border-line bg-surface p-3">
-          <StepList step={step} />
+          <StepList step={step} proposal={proposal} />
         </div>
 
         <div className="mt-5 flex items-center gap-4 rounded-2xl border border-line bg-surface p-4">
@@ -230,7 +268,19 @@ function PhoneFrame({ deviceId, children }: { deviceId: string; children: React.
 /* Ono što kupac vidi                                                  */
 /* ------------------------------------------------------------------ */
 
-function CustomerApp({ deviceId, view, sentId, go }: { deviceId: string; view: View; sentId: string | null; go: (v: View, id?: string) => void }) {
+function CustomerApp({
+  deviceId,
+  view,
+  sentId,
+  proposalId,
+  go,
+}: {
+  deviceId: string;
+  view: View;
+  sentId: string | null;
+  proposalId: string | null;
+  go: (v: View, id?: string) => void;
+}) {
   const { state, createRequest } = useDemo();
   const L = lookup(state);
   const device = L.device(deviceId)!;
@@ -239,6 +289,7 @@ function CustomerApp({ deviceId, view, sentId, go }: { deviceId: string; view: V
   const today = state.anchor;
   const status = dueStatus(device, today);
   const latest = state.requests.find((r) => r.deviceId === deviceId && r.fromSimulation);
+  const pending = state.proposals.find((p) => p.deviceIds.includes(deviceId) && p.status === 'poslan');
 
   const companyBar = (
     <div className="flex items-center gap-3 border-b border-line bg-surface px-4 py-3">
@@ -292,6 +343,15 @@ function CustomerApp({ deviceId, view, sentId, go }: { deviceId: string; view: V
     );
   }
 
+  if (view === 'prijedlog' && proposalId) {
+    return (
+      <>
+        {companyBar}
+        <CustomerProposal proposalId={proposalId} onBack={() => go('kartica')} onOther={() => go('servis')} />
+      </>
+    );
+  }
+
   if (view === 'servis' || view === 'kvar') {
     return (
       <>
@@ -334,18 +394,40 @@ function CustomerApp({ deviceId, view, sentId, go }: { deviceId: string; view: V
             <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
             {loc?.name}, {loc?.address}, {loc?.city}
           </p>
-          <div
-            className={cn(
-              'mt-3 rounded-xl px-3 py-2.5 text-sm',
-              status === 'zakasnio' ? 'bg-danger-soft text-danger' : status === 'uredu' ? 'bg-ok-soft text-ok' : 'bg-warn-soft text-warn',
-            )}
-          >
-            <p className="font-semibold">
-              {status === 'zakasnio' ? 'Redovni servis je zakasnio' : 'Sljedeći redovni servis'}: {formatShort(device.nextServiceOn)} ({relativeDays(device.nextServiceOn, today)})
-            </p>
-            <p className="text-ink-2">Posljednji servis: {device.lastServiceOn ? formatLong(device.lastServiceOn) : 'još nije bilo'}</p>
-          </div>
+          {device.status === 'ugradnja' ? (
+            <div className="mt-3 rounded-xl bg-primary-soft px-3 py-2.5 text-sm text-primary-hover">
+              <p className="font-semibold">Uređaj je najavljen za ugradnju: {formatShort(device.installedOn)}</p>
+              <p className="text-ink-2">Nakon ugradnje ovdje će biti rok prvog servisa.</p>
+            </div>
+          ) : (
+            <div
+              className={cn(
+                'mt-3 rounded-xl px-3 py-2.5 text-sm',
+                status === 'zakasnio' ? 'bg-danger-soft text-danger' : status === 'uredu' ? 'bg-ok-soft text-ok' : 'bg-warn-soft text-warn',
+              )}
+            >
+              <p className="font-semibold">
+                {status === 'zakasnio' ? 'Redovni servis je zakasnio' : 'Sljedeći redovni servis'}: {formatShort(device.nextServiceOn)} ({relativeDays(device.nextServiceOn, today)})
+              </p>
+              <p className="text-ink-2">Posljednji servis: {device.lastServiceOn ? formatLong(device.lastServiceOn) : 'još nije bilo'}</p>
+            </div>
+          )}
         </section>
+
+        {pending ? (
+          <section className="rounded-2xl border-2 border-primary/40 bg-surface p-4 shadow-[var(--shadow-card)]" aria-labelledby="prijedlog-kartica" data-testid="pending-proposal">
+            <p className="text-[13px] font-semibold text-primary">Prijedlog termina od servisa</p>
+            <h2 id="prijedlog-kartica" className="text-lg font-bold">
+              Odaberite termin za redovni servis
+            </h2>
+            <p className="mt-1 text-sm text-ink-2">
+              Ponuđeno {pending.slots.length} termina · rok {formatShort(pending.dueOn)} ({relativeDays(pending.dueOn, today)})
+            </p>
+            <Button className="mt-3 w-full" onClick={() => go('prijedlog', pending.id)}>
+              Odaberi termin
+            </Button>
+          </section>
+        ) : null}
 
         {latest ? <RequestStatus request={latest} compact /> : null}
 

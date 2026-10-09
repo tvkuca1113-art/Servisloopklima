@@ -1,6 +1,6 @@
 # Test report — ServisLoop Klima vizuelni demo
 
-Posljednja provjera: 9. oktobar 2026. (drugi krug: skeniranje uređaja na objektu, novi prikaz kupca, tri pregledna prolaza).
+Posljednja provjera: 9. oktobar 2026. Treći krug: ugradnja novih uređaja, prazne naljepnice, plan servisa i prijedlog termina kupcu, uz tri pregledna prolaza.
 Okruženje: Linux kontejner, Node 22.22.0, npm 10.9.4, Next.js 15.5.22, Playwright 1.56.1 s instaliranim Chromiumom (headless).
 Svi rezultati su stvarno izvedeni nad production buildom (`next build` + `next start`). Što nije izvedeno, navedeno je na kraju.
 
@@ -10,10 +10,10 @@ Svi rezultati su stvarno izvedeni nad production buildom (`next build` + `next s
 | --- | --- | --- |
 | Lint | `npm run lint` | prošlo, 0 grešaka, 0 upozorenja |
 | Typecheck | `npm run typecheck` | prošlo |
-| Unit testovi | `npm test` | 3 fajla, **11/11 prošlo** |
-| Production build | `npm run build` | prošlo; 18 ruta |
-| E2E / smoke | `npx playwright test` | **16/16 prošlo**, uključujući test kamere |
-| Screenshot skripte | `scripts/screenshots.mjs`, `scripts/review.mjs` | 26 + 24 snimka; 0 grešaka u konzoli; 0 px horizontalnog overflowa |
+| Unit testovi | `npm test` | 3 fajla, **14/14 prošlo** |
+| Production build | `npm run build` | prošlo; 20 ruta |
+| E2E / smoke | `npx playwright test` | **19/19 prošlo**, uključujući test kamere |
+| Screenshot skripte | `scripts/screenshots.mjs`, `scripts/review.mjs`, `scripts/review-ugradnja.mjs` | 32 + 24 + 22 snimka; 0 grešaka u konzoli; 0 px horizontalnog overflowa |
 | Primjeri | `scripts/flow-captures.mjs` | QR PNG/SVG + 3 PDF-a iz print prikaza |
 | Javni deploy | — | Objavljenu adresu (`servisloop-hvac-demo.vercel.app`, vidljiva na screenshotu naručioca) **nisam mogao otvoriti iz ovog okruženja**: proxy odbija vezu, Vercel API vraća 403. Provjera je izvedena na istom kodu lokalno. |
 
@@ -24,21 +24,26 @@ Svi rezultati su stvarno izvedeni nad production buildom (`next build` + `next s
 | `glavni-tok › cijeli lokalni tok…` | početna (DEMO tekst) → vlasnik (vodič korak 1, 7 otvorenih naloga) → TP-001 (QR URL) → **prikaz kupca**: objašnjenje u koracima, okvir telefona, `Nazad na demo` → validacija (datum, termin, kontakt; unos ostaje) → potvrda „Prikazan je primjer zahtjeva DEMO-001. Nije poslan servisnoj firmi.” + status prijave → vlasnik: **KL-012 i KL-015 predloženi u istoj posjeti**, demo kolizija (Lejla 09:00, dugme onemogućeno) → dodjela → NAL-0118 s 3 uređaja → serviser: završetak bez obrade navodi šta nedostaje → **naljepnica s drugog objekta odbijena („Pogrešan uređaj… Ništa nije upisano”)** → TP-001 skeniran → prazna lista pokazuje šta nedostaje → `Sve uredno` → **KL-012 ručnim unosom** + „Potrebna pažnja” bez opisa (traži opis) → KL-015 → preporuka → završetak (3/3) → izvještaj (sva 3 uređaja, „Ručni unos oznake”, `čćšžđ`) → print sakriva alatnu traku → kupac vidi „Servis obavljen” → vodič „završen” → reset; 0 grešaka u konzoli |
 | `glavni-tok › uređaj s istog objekta…` | KL-003 skeniran na posjeti NAL-0111 → „nije na nalogu” → `Dodaj na nalog i nastavi` → 3 uređaja na nalogu |
 | `glavni-tok › reload u istom tabu…` | prijava kvara bez simptoma traži izbor; „Curi voda” + „Ne radi uopšte” → potvrda „Stvarna intervencija nije naručena.” → vlasnik vidi simptom i „Uređaj ne radi”; ostaje nakon reloada; novi browser kontekst je ne vidi |
+| `ugradnja-i-plan › vlasnik planira ugradnju…` | validacija → novi kupac i objekat → KL-017 „Ugradnja planirana” → naljepnica za paket → kartica kupca „najavljen za ugradnju” → serviser skenira naljepnicu iz paketa, upisuje serijski broj → **prazna naljepnica N-0001** → forma (validacija) → KL-018 → završetak: oba uređaja aktivna, **prvi servis automatski u planu** → „Zapisnik o ugradnji” sa serijskim brojem → `/demo/kupac/N-0001` vodi na KL-018, N-0002 „još nije povezana”, list naljepnica pokazuje „Povezana: KL-018” |
+| `ugradnja-i-plan › pogrešna naljepnica…` | kod N-9999 (nije iz kompleta) se odbija |
+| `ugradnja-i-plan › prijedlog termina…` | Plan servisa → prijedlog za KL-003 (zakasnio) → poruka „PRIMJER — NIJE POSLANO” s tekstom „…obavi što prije” → link iz poruke → bez izbora traži termin → izbor → „Nije poslano servisnoj firmi” → nalog NAL-0118 kod vlasnika; TP-002 (PRJ-001) → „Ne želim servis sada” → objašnjenje s garantnim listom → traži razlog i potvrdu → „Podsjetićemo vas kasnije” → vlasnik vidi oba odgovora |
 | `kamera › skener servisera dekodira QR iz kamere…` | Chromium s lažnom kamerom (Y4M video s QR kodom KL-002) → `Skeniraj kamerom` → **jsQR dekodira sliku s kamere** i otvara unos baš za KL-002 („QR skeniran”) |
 | `funkcije › QR PNG i SVG…` | URL = `{baseURL}/demo/kupac/TP-001`, bez `servisloop2`; PNG (≥256 px) i SVG se preuzimaju i **dekodiraju na tačan URL**; URL u novom mobilnom kontekstu otvara stranicu kupca bez prijave, s objašnjenjem i `Nazad na demo` |
 | `funkcije › pretraga i filteri…` | 24/24, pumpe 8, klime 16, zakasnio 4, „Mostar” 3, prazno stanje |
 | `funkcije › dodavanje i uređivanje…` | validacija, novi TP-009, izmjena naziva, lista 25 |
 | `funkcije › fotografija kvara…` | odbijen `.txt`, PNG lokalni pregled, uklanjanje; 0 ne-GET zahtjeva (nema uploada) |
 | `funkcije › primjeri poruka…` | 4× „PRIMJER — NIJE POSLANO”; bez „dostavljeno / trajno sačuvan / sve funkcije su aktivne / stvarno zakazan” |
-| `rute-i-mobilni › sve glavne rute…` | 19 ruta direktno: HTTP 200, DEMO traka, nema `href="#"`; 0 grešaka u konzoli |
-| `rute-i-mobilni › overflow 360/390/430/768/1280` | svih 19 ruta bez horizontalnog overflowa |
+| `rute-i-mobilni › sve glavne rute…` | 23 rute direktno (uključujući `/demo/plan`, `/demo/naljepnice`, `/demo/kupac/N-0001` i link prijedloga): HTTP 200, DEMO traka, nema `href="#"`; 0 grešaka u konzoli |
+| `rute-i-mobilni › overflow 360/390/430/768/1280` | sve 23 rute bez horizontalnog overflowa |
 | `rute-i-mobilni › modal…` | tastatura, `Esc`, povratak fokusa |
 
 Unit (`src/lib/*.test.ts`):
 - kalendarski mjeseci i bosanski formati datuma;
 - seed (6/8/24/16/8/2/3), KPI, kolizija;
 - čitanje oznake uređaja iz QR-a (URL, ručni unos `kl012`, odbijanje drugih kodova);
-- `Sve uredno` popunjava samo neodgovorene stavke.
+- `Sve uredno` popunjava samo neodgovorene stavke;
+- kodovi praznih naljepnica;
+- budući nalozi i termini prijedloga u primjeru su radnim danima i bez kolizija; komplet od 12 praznih naljepnica.
 
 ## Tri pregledna prolaza (drugi krug)
 
@@ -58,6 +63,20 @@ Svaki prolaz je kroz `scripts/review.mjs` snimio cijeli tok na 1440 px i 390 px:
 | 2 | Nejasno koji je uređaj „glavni” na nalogu | Oznaka „Glavni uređaj (iz zahtjeva / plana)” |
 | 3 | Na kartici uređaja nije se vidjelo da objekat ima više uređaja | Polje „Na istom objektu” s linkovima |
 | 3 | Bez novih overflowa, grešaka ni preklapanja | — |
+
+## Tri pregledna prolaza (treći krug)
+
+`scripts/review-ugradnja.mjs` snima na 1440 i 390 px: nova ugradnja → nalog → naljepnica → serviser (ugradnja + prazna naljepnica) → zapisnik → plan → prijedlog → link kupca → odgađanje → prihvatanje → odgovori → povezana i prazna naljepnica → list naljepnica.
+
+| Prolaz | Nađeno | Urađeno |
+| --- | --- | --- |
+| 1 | Za zakasneli rok poruka je glasila „treba obaviti do … (prije 35 dana)” | Zakasneli rok: „rok je bio … Preporučujemo da se servis obavi što prije” (poruka i stranica kupca) |
+| 1 | Objašnjenje lijevo kod linka iz poruke opisivalo je QR skeniranje | Posebnih 5 koraka za prijedlog termina (rok → poruka → link → izbor/odbijanje → vlasnik) |
+| 1 | Termini u primjeru padali su i u nedjelju; jedan termin iz prijedloga sudarao se s nalogom | Budući nalozi i termini samo radnim danima, bez kolizija (unit test) |
+| 1 | Nepovezana naljepnica nije govorila serviseru šta da radi | Dodata uputa „Novi uređaj na objektu” |
+| 2 | Zapisnik o ugradnji imao je „Datum servisa” i oznaku „servisnog izvještaja”; „nije upisan · nije upisan” | „Datum ugradnje”, „DEMO — primjer zapisnika o ugradnji”, „model/serijski broj nije upisan” |
+| 3 | Serijski broj kod ugradnje bio je ispod liste | Polje za serijski broj je prvo, odmah ispod potvrde identifikacije |
+| 3 | Bez novih overflowa i grešaka u konzoli | — |
 
 ## Matrica provjera iz 04-PROVJERE-DEMOA.md
 
@@ -85,8 +104,9 @@ Kontrast stvarnih kombinacija boja (WCAG formula) ostaje ≥4,7:1 za sav normaln
 
 ## Screenshotovi
 
-- `screenshots/01…13-*-desktop.png` i `*-mobile.png`: glavne stranice.
-- `screenshots/tok/`: novi tok (`d-` = 1440 px, `m-` = 390 px):
+- `screenshots/01…16-*-desktop.png` i `*-mobile.png`: glavne stranice (uključujući plan servisa, prazne naljepnice i prijedlog termina).
+- `screenshots/ugradnja-i-plan/`: nova ugradnja, nalog i naljepnica za paket, serviser (ugradnja, prazna naljepnica, forma novog uređaja, završetak s prvim servisom), zapisnik, plan servisa, prijedlog (modal, poslan), kupac (izbor, odbijanje, odgoda, prihvatanje), odgovori, prazna naljepnica, list naljepnica.
+- `screenshots/tok/`: tok skeniranja (`d-` = 1440 px, `m-` = 390 px):
   - `01` kartica kupca, `01b` objašnjenje, `02–04` prijava kvara, greška, potvrda;
   - `06/06b` dodjela s uređajima na objektu i kolizijom, `07` nalog kod vlasnika;
   - `08–09` posjeta servisera, `10` skeniranje, `11` pogrešan uređaj, `12–13` unos i „Sve uredno”;
@@ -97,6 +117,7 @@ Na full-page snimcima fiksni elementi (donja navigacija, sticky dugme, vodič) p
 ## Šta NIJE provjereno
 
 - **Objavljena verzija na Vercelu** nije dostupna iz ovog okruženja (proxy i Vercel 403). Nakon pusha na `main` treba provjeriti da se novi deploy pokrenuo.
+- Tekst o posljedicama odgađanja servisa je namjerno opšti i provjerljiv; firma ga treba potvrditi prema proizvođačima koje ugrađuje.
 - **Fizička kamera telefona i fizička naljepnica.** Skener je provjeren emuliranom kamerom u Chromiumu, ne stvarnim telefonom. Na telefonu kamera radi samo preko HTTPS-a i uz dozvolu za kameru.
 - Stvarni iOS Safari / Android Chrome, čitač ekrana, fizički štampač.
 - Headless Chromium prikazuje datum kao `mm/dd/yyyy`; stvarni preglednik prikazuje lokalni format.

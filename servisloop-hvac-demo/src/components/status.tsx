@@ -9,6 +9,7 @@ import { Badge, type Tone } from './ui';
 const DUE_TONE: Record<DueStatus, Tone> = { zakasnio: 'danger', sedam: 'warn', uskoro: 'warn', uredu: 'ok' };
 
 export function DueBadge({ device, today }: { device: Device; today: CivilDate }) {
+  if (device.status === 'ugradnja') return <Badge tone="info">Ugradnja planirana</Badge>;
   const s = dueStatus(device, today);
   return <Badge tone={DUE_TONE[s]}>{s === 'zakasnio' ? `Kasni ${relativeDays(device.nextServiceOn, today).replace('prije ', '')}` : DUE_LABEL[s]}</Badge>;
 }

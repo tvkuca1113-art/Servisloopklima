@@ -2,10 +2,10 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
-import { checklistFor } from './checklists';
+import { checklistFor, installChecklist } from './checklists';
 import { addMonths, todayInZone, type CivilDate } from './dates';
 import { createInitialState, DEMO_STATE_VERSION } from './demo-data';
-import type { DemoState, Device, GuideState, OrderItem, RequestKind, ServiceRequest, WorkOrder } from './types';
+import type { Customer, DemoState, Device, DeviceKind, GuideState, Location, OrderItem, Proposal, ProposalSlot, RequestKind, ServiceRequest, WorkOrder } from './types';
 
 /**
  * Lokalno stanje probe. Živi samo u ovom browser tabu (sessionStorage), pa vlasnik,
@@ -27,6 +27,10 @@ type Action =
   | { type: 'updateItem'; id: string; deviceId: string; patch: Partial<OrderItem> }
   | { type: 'addItem'; id: string; item: OrderItem }
   | { type: 'completeOrder'; id: string }
+  | { type: 'planInstall'; customer: Customer | null; location: Location | null; device: Device; order: WorkOrder }
+  | { type: 'onSiteDevice'; orderId: string; device: Device; item: OrderItem }
+  | { type: 'sendProposal'; proposal: Proposal }
+  | { type: 'respondProposal'; id: string; patch: Partial<Proposal>; order: WorkOrder | null }
   | { type: 'guide'; patch: Partial<GuideState> };
 
 function log(state: DemoState, text: string, href: string | null): DemoState['activity'] {
@@ -137,6 +141,17 @@ function reducer(state: DemoState, action: Action): DemoState {
         devices: state.devices.map((d) => {
           if (!doneIds.has(d.id)) return d;
           const item = order.items.find((i) => i.deviceId === d.id);
+          if (d.status === 'ugradnja') {
+            // Ugradnja završena: uređaj postaje aktivan, a prvi servis automatski ulazi u plan.
+            return {
+              ...d,
+              status: 'aktivan',
+              installedOn: today,
+              lastServiceOn: null,
+              nextServiceOn: addMonths(today, d.intervalMonths),
+              history: [{ date: today, title: 'Ugradnja', technicianId: order.technicianId ?? 't1', summary: item?.note || 'Uređaj ugrađen i predat kupcu (demo).', workOrderId: order.id }, ...d.history],
+            };
+          }
           return {
             ...d,
             lastServiceOn: today,
@@ -148,6 +163,56 @@ function reducer(state: DemoState, action: Action): DemoState {
           };
         }),
         activity: log(state, `Završen demo nalog ${order.id} (${order.items.map((i) => i.deviceId).join(', ')}).`, `/demo/izvjestaji/${order.id}`),
+      };
+    }
+    case 'planInstall':
+      return {
+        ...state,
+        customers: action.customer ? [...state.customers, action.customer] : state.customers,
+        locations: action.location ? [...state.locations, action.location] : state.locations,
+        devices: [...state.devices, action.device],
+        workOrders: [...state.workOrders, action.order],
+        counters: {
+          ...state.counters,
+          device: state.counters.device + 1,
+          workOrder: state.counters.workOrder + 1,
+          customer: state.counters.customer + (action.customer ? 1 : 0),
+        },
+        activity: log(state, `Planirana ugradnja ${action.device.id} (${action.order.id}); naljepnica spremna za štampu.`, `/demo/nalozi/${action.order.id}`),
+      };
+    case 'onSiteDevice':
+      return {
+        ...state,
+        devices: [...state.devices, action.device],
+        labels: state.labels.map((l) => (l.code === action.device.label ? { ...l, deviceId: action.device.id } : l)),
+        workOrders: state.workOrders.map((w) => (w.id === action.orderId ? { ...w, items: [...w.items, action.item] } : w)),
+        counters: { ...state.counters, device: state.counters.device + 1 },
+        activity: log(state, `Serviser je na objektu dodao ${action.device.id} i povezao naljepnicu ${action.device.label} (nalog ${action.orderId}).`, `/demo/uredaji/${action.device.id}`),
+      };
+    case 'sendProposal': {
+      const p = action.proposal;
+      return {
+        ...state,
+        proposals: [p, ...state.proposals],
+        counters: { ...state.counters, proposal: state.counters.proposal + 1 },
+        activity: log(state, `Simuliran prijedlog termina ${p.id} za ${p.deviceIds.join(', ')} (${p.channel === 'email' ? 'e-mail' : 'SMS'}) — nije poslano.`, '/demo/plan'),
+      };
+    }
+    case 'respondProposal': {
+      const before = state.proposals.find((p) => p.id === action.id);
+      const status = action.patch.status;
+      const text =
+        status === 'prihvacen'
+          ? `Kupac je odabrao termin iz prijedloga ${action.id}; kreiran nalog ${action.order?.id}.`
+          : status === 'odgoden'
+            ? `Kupac je tražio kasniji podsjetnik (${action.id}).`
+            : `Kupac je odbio termin iz prijedloga ${action.id}.`;
+      return {
+        ...state,
+        proposals: state.proposals.map((p) => (p.id === action.id ? { ...p, ...action.patch } : p)),
+        workOrders: action.order ? [...state.workOrders, action.order] : state.workOrders,
+        counters: action.order ? { ...state.counters, workOrder: state.counters.workOrder + 1 } : state.counters,
+        activity: before ? log(state, text, action.order ? `/demo/nalozi/${action.order.id}` : '/demo/plan') : state.activity,
       };
     }
     case 'guide':
@@ -200,6 +265,27 @@ export interface NewRequestInput {
   urgent: boolean;
 }
 
+export interface NewDeviceInput {
+  kind: DeviceKind;
+  typeLabel: string;
+  name: string;
+  model: string;
+  serial: string;
+  intervalMonths: number;
+  /** true = uređaj se upravo ugrađuje; false = postojeći uređaj koji nije bio u evidenciji. */
+  newInstall: boolean;
+}
+
+export interface InstallInput {
+  locationId: string | null;
+  newCustomer: { name: string; type: Customer['type']; email: string; locationName: string; address: string; city: string } | null;
+  device: Omit<NewDeviceInput, 'newInstall' | 'serial'>;
+  technicianId: string;
+  date: CivilDate;
+  start: string;
+  durationMin: number;
+}
+
 export interface ScheduleInput {
   technicianId: string;
   date: CivilDate;
@@ -224,6 +310,11 @@ interface DemoApi {
   completeOrder: (orderId: string) => void;
   updateItem: (orderId: string, deviceId: string, patch: Partial<OrderItem>) => void;
   addItem: (orderId: string, deviceId: string) => void;
+  planInstall: (input: InstallInput) => { deviceId: string; orderId: string };
+  addOnSiteDevice: (orderId: string, labelCode: string, input: NewDeviceInput) => string;
+  sendProposal: (input: Omit<Proposal, 'id' | 'status' | 'chosen' | 'reason' | 'sentAt' | 'respondedAt' | 'workOrderId'>) => string;
+  acceptProposal: (id: string, slotIndex: number) => string | null;
+  declineProposal: (id: string, status: 'odbijen' | 'odgoden', reason: string) => void;
   setGuide: (patch: Partial<GuideState>) => void;
 }
 
@@ -247,6 +338,13 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   }, [state, ready]);
 
   const nextOrderId = () => `NAL-${String(ref.current.counters.workOrder + 1).padStart(4, '0')}`;
+
+  const nextDeviceId = (prefix: 'TP' | 'KL') => {
+    const used = new Set(ref.current.devices.map((d) => d.id));
+    let n = ref.current.devices.filter((d) => d.id.startsWith(prefix)).length + 1;
+    while (used.has(`${prefix}-${String(n).padStart(3, '0')}`)) n += 1;
+    return `${prefix}-${String(n).padStart(3, '0')}`;
+  };
 
   const makeItem = useCallback((deviceId: string): OrderItem => {
     const device = ref.current.devices.find((d) => d.id === deviceId);
@@ -330,6 +428,92 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       completeOrder: (orderId) => dispatch({ type: 'completeOrder', id: orderId }),
       updateItem: (orderId, deviceId, patch) => dispatch({ type: 'updateItem', id: orderId, deviceId, patch }),
       addItem: (orderId, deviceId) => dispatch({ type: 'addItem', id: orderId, item: makeItem(deviceId) }),
+      planInstall: (input) => {
+        const cur = ref.current;
+        let customer: Customer | null = null;
+        let location: Location | null = null;
+        let locationId = input.locationId ?? '';
+        if (input.newCustomer) {
+          const n = cur.counters.customer + 1;
+          customer = { id: `c${n}`, name: input.newCustomer.name, type: input.newCustomer.type, email: input.newCustomer.email || 'kupac@example.test', phone: 'nije unesen (demo)' };
+          location = { id: `l-n${n}`, customerId: customer.id, name: input.newCustomer.locationName, address: input.newCustomer.address, city: input.newCustomer.city };
+          locationId = location.id;
+        }
+        const deviceId = nextDeviceId(input.device.kind === 'pumpa' ? 'TP' : 'KL');
+        const device: Device = {
+          ...input.device,
+          id: deviceId,
+          serial: 'upisuje serviser pri ugradnji',
+          locationId,
+          installedOn: input.date,
+          lastServiceOn: null,
+          nextServiceOn: addMonths(input.date, input.device.intervalMonths),
+          note: 'Najavljen za ugradnju. QR naljepnica ide uz uređaj.',
+          history: [],
+          status: 'ugradnja',
+          label: null,
+        };
+        const order: WorkOrder = {
+          ...makeOrder(deviceId, { technicianId: input.technicianId, date: input.date, start: input.start, durationMin: input.durationMin }, {}),
+          locationId,
+          category: 'Ugradnja',
+          reason: 'Ugradnja novog uređaja. Serviser lijepi QR naljepnicu iz paketa i skenira je prije unosa.',
+          items: [{ deviceId, checklist: installChecklist(), note: '', photos: [], identifiedAt: null, identifiedBy: null, done: false }],
+        };
+        dispatch({ type: 'planInstall', customer, location, device, order });
+        return { deviceId, orderId: order.id };
+      },
+      addOnSiteDevice: (orderId, labelCode, input) => {
+        const order = ref.current.workOrders.find((w) => w.id === orderId);
+        const today = ref.current.anchor;
+        const deviceId = nextDeviceId(input.kind === 'pumpa' ? 'TP' : 'KL');
+        const device: Device = {
+          id: deviceId,
+          name: input.name,
+          kind: input.kind,
+          typeLabel: input.typeLabel,
+          model: input.model || 'model nije upisan',
+          serial: input.serial || 'serijski broj nije upisan',
+          locationId: order?.locationId ?? '',
+          installedOn: today,
+          intervalMonths: input.intervalMonths,
+          lastServiceOn: null,
+          nextServiceOn: addMonths(today, input.intervalMonths),
+          note: input.newInstall ? 'Dodan pri ugradnji na licu mjesta.' : 'Postojeći uređaj dodan u evidenciju na licu mjesta; datum ugradnje nije poznat.',
+          history: [],
+          status: input.newInstall ? 'ugradnja' : 'aktivan',
+          label: labelCode,
+        };
+        const item: OrderItem = {
+          deviceId,
+          checklist: input.newInstall ? installChecklist() : checklistFor(input.kind),
+          note: '',
+          photos: [],
+          identifiedAt: Date.now(),
+          identifiedBy: 'qr',
+          done: false,
+        };
+        dispatch({ type: 'onSiteDevice', orderId, device, item });
+        return deviceId;
+      },
+      sendProposal: (input) => {
+        const id = `PRJ-${String(ref.current.counters.proposal + 1).padStart(3, '0')}`;
+        dispatch({ type: 'sendProposal', proposal: { ...input, id, status: 'poslan', chosen: null, reason: '', sentAt: Date.now(), respondedAt: null, workOrderId: null } });
+        return id;
+      },
+      acceptProposal: (id, slotIndex) => {
+        const p = ref.current.proposals.find((x) => x.id === id);
+        const slot: ProposalSlot | undefined = p?.slots[slotIndex];
+        if (!p || !slot) return null;
+        const order = makeOrder(
+          p.deviceIds[0]!,
+          { technicianId: slot.technicianId, date: slot.date, start: slot.start, durationMin: p.durationMin, extraDeviceIds: p.deviceIds.slice(1) },
+          { reason: `Redovni servis — kupac je odabrao termin iz prijedloga ${p.id}.` },
+        );
+        dispatch({ type: 'respondProposal', id, patch: { status: 'prihvacen', chosen: slotIndex, respondedAt: Date.now(), workOrderId: order.id }, order });
+        return order.id;
+      },
+      declineProposal: (id, status, reason) => dispatch({ type: 'respondProposal', id, patch: { status, reason, respondedAt: Date.now() }, order: null }),
       setGuide: (patch) => dispatch({ type: 'guide', patch }),
     }),
     [state, ready, makeOrder, makeItem],

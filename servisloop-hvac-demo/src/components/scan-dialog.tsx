@@ -5,7 +5,7 @@ import { Camera, CameraOff, Keyboard, ScanLine } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 import { deviceIdFromQr } from '@/lib/checklists';
-import { deviceTitle, lookup } from '@/lib/derive';
+import { deviceTitle, lookup, resolveCode } from '@/lib/derive';
 import { customerUrl, qrPngDataUrl } from '@/lib/qr';
 import { useDemo } from '@/lib/store';
 import type { WorkOrder } from '@/lib/types';
@@ -31,6 +31,8 @@ export function ScanDialog({
   order,
   expected,
   onIdentified,
+  onBlankLabel,
+  mode = 'uredaj',
 }: {
   open: boolean;
   onClose: () => void;
@@ -38,6 +40,9 @@ export function ScanDialog({
   /** Uređaj koji serviser namjerava obraditi (samo za naslov); prihvata se bilo koji s naloga. */
   expected?: string | null;
   onIdentified: (deviceId: string, method: Method) => void;
+  /** Skenirana je prazna naljepnica iz rezervnog kompleta — serviser dodaje novi uređaj. */
+  onBlankLabel: (code: string) => void;
+  mode?: 'uredaj' | 'nova';
 }) {
   const { state, addItem } = useDemo();
   const L = lookup(state);
@@ -46,7 +51,7 @@ export function ScanDialog({
   const [manual, setManual] = useState('');
   const [camera, setCamera] = useState<'off' | 'starting' | 'on' | 'error'>('off');
   const [cameraError, setCameraError] = useState('');
-  const [stickers, setStickers] = useState<{ id: string; title: string; png: string; decoy: boolean }[]>([]);
+  const [stickers, setStickers] = useState<{ id: string; title: string; png: string; decoy: boolean; blank: boolean }[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -65,11 +70,23 @@ export function ScanDialog({
 
   const handle = useCallback(
     (text: string, method: Method) => {
-      const id = deviceIdFromQr(text);
-      if (!id) {
+      const code = deviceIdFromQr(text);
+      if (!code) {
         setProblem({ tone: 'danger', text: 'Ovaj QR kod nije naljepnica uređaja iz evidencije. Ništa nije upisano.' });
         return;
       }
+      const resolved = resolveCode(state, code);
+      if (resolved.kind === 'label' && !resolved.deviceId) {
+        if (!state.labels.some((l) => l.code === code)) {
+          setProblem({ tone: 'danger', text: `Naljepnica ${code} nije iz kompleta ove firme. Ništa nije upisano.` });
+          return;
+        }
+        setProblem(null);
+        stopCamera();
+        onBlankLabel(code);
+        return;
+      }
+      const id = resolved.deviceId!;
       if (order.items.some((i) => i.deviceId === id)) {
         setProblem(null);
         stopCamera();
@@ -92,7 +109,7 @@ export function ScanDialog({
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [order, state.devices, stopCamera, onIdentified],
+    [order, state.devices, state.labels, stopCamera, onIdentified, onBlankLabel],
   );
 
   // Simulirane naljepnice za demo: uređaji na objektu + jedna s drugog objekta (za prikaz greške).
@@ -102,15 +119,20 @@ export function ScanDialog({
     setManual('');
     const here = state.devices.filter((d) => d.locationId === order.locationId);
     const decoy = state.devices.find((d) => d.locationId !== order.locationId && d.kind === here[0]?.kind) ?? state.devices.find((d) => d.locationId !== order.locationId);
-    const list = [...here.map((d) => ({ d, decoy: false })), ...(decoy ? [{ d: decoy, decoy: true }] : [])];
+    const list = [
+      ...here.map((d) => ({ id: d.label ?? d.id, title: d.label ? `${d.id} · ${d.name}` : d.name, decoy: false, blank: false })),
+      ...state.labels.filter((l) => !l.deviceId).slice(0, mode === 'nova' ? 2 : 1).map((l) => ({ id: l.code, title: 'Prazna naljepnica (rezervni komplet)', decoy: false, blank: true })),
+      ...(decoy && mode === 'uredaj' ? [{ id: decoy.id, title: decoy.name, decoy: true, blank: false }] : []),
+    ];
     let alive = true;
-    Promise.all(list.map(async ({ d, decoy: isDecoy }) => ({ id: d.id, title: d.name, png: await qrPngDataUrl(customerUrl(d.id), 168), decoy: isDecoy }))).then((s) => {
-      if (alive) setStickers(s);
+    Promise.all(list.map(async (x) => ({ ...x, png: await qrPngDataUrl(customerUrl(x.id), 168) }))).then((s) => {
+      if (alive) setStickers(mode === 'nova' ? [...s.filter((x) => x.blank), ...s.filter((x) => !x.blank)] : s);
     });
     return () => {
       alive = false;
     };
-  }, [open, order.locationId, state.devices]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, order.locationId, state.devices, mode]);
 
   useEffect(() => {
     if (!open) stopCamera();
@@ -178,8 +200,12 @@ export function ScanDialog({
       open={open}
       onClose={onClose}
       wide
-      title={expectedDevice ? `Skeniraj QR: ${expectedDevice.id}` : 'Skeniraj QR uređaja'}
-      description={`Objekat: ${location?.name ?? ''}. Unos je moguć tek kada se potvrdi da je uređaj na ovom nalogu.`}
+      title={mode === 'nova' ? 'Novi uređaj: skeniraj praznu naljepnicu' : expectedDevice ? `Skeniraj QR: ${expectedDevice.id}` : 'Skeniraj QR uređaja'}
+      description={
+        mode === 'nova'
+          ? 'Zalijepite praznu naljepnicu iz rezervnog kompleta na uređaj i skenirajte je. Zatim upišete nekoliko podataka.'
+          : `Objekat: ${location?.name ?? ''}. Unos je moguć tek kada se potvrdi da je uređaj na ovom nalogu.`
+      }
     >
       <div className="space-y-5">
         {problem ? (
@@ -243,13 +269,14 @@ export function ScanDialog({
                   onClick={() => handle(customerUrl(s.id), 'qr')}
                   className="flex w-full flex-col items-center gap-1 rounded-xl border border-line-2 bg-white p-2 text-center hover:border-primary focus-visible:border-primary"
                   data-testid={`sticker-${s.id}`}
-                  aria-label={`Simuliraj skeniranje naljepnice ${s.id}${s.decoy ? ' (drugi objekat)' : ''}`}
+                  aria-label={`Simuliraj skeniranje naljepnice ${s.id}${s.decoy ? ' (drugi objekat)' : s.blank ? ' (prazna)' : ''}`}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={s.png} alt="" className="size-20" />
                   <span className="text-sm font-bold text-black">{s.id}</span>
                   <span className="line-clamp-2 text-[12px] leading-tight text-ink-2">{s.title}</span>
                   {s.decoy ? <span className="mt-0.5 rounded bg-warn-soft px-1.5 text-[11px] font-semibold text-warn">drugi objekat</span> : null}
+                  {s.blank ? <span className="mt-0.5 rounded bg-primary-soft px-1.5 text-[11px] font-semibold text-primary-hover">prazna</span> : null}
                 </button>
               </li>
             ))}
@@ -270,7 +297,7 @@ export function ScanDialog({
             <label htmlFor={`${uid}-input`} className="sr-only">
               Oznaka uređaja
             </label>
-            <input id={`${uid}-input`} value={manual} onChange={(e) => setManual(e.target.value)} placeholder="npr. TP-001" className={inputClass()} autoCapitalize="characters" maxLength={12} />
+            <input id={`${uid}-input`} value={manual} onChange={(e) => setManual(e.target.value)} placeholder={mode === 'nova' ? 'npr. N-0001' : 'npr. TP-001'} className={inputClass()} autoCapitalize="characters" maxLength={12} />
             <Button type="submit" variant="secondary" className="shrink-0">
               Potvrdi oznaku
             </Button>

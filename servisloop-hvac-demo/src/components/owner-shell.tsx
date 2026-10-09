@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  CalendarClock,
   CalendarDays,
   ClipboardList,
   FileText,
@@ -39,6 +40,7 @@ function useNav(): NavItem[] {
   const pending = state.requests.filter((r) => r.status === 'na_cekanju').length;
   return [
     { href: '/demo', label: 'Pregled', icon: LayoutDashboard, match: (p) => p === '/demo' },
+    { href: '/demo/plan', label: 'Plan servisa', icon: CalendarClock, match: (p) => p.startsWith('/demo/plan') },
     { href: '/demo/uredaji', label: 'Uređaji', icon: Thermometer, match: (p) => p.startsWith('/demo/uredaji') },
     { href: '/demo/raspored', label: 'Raspored', icon: CalendarDays, match: (p) => p.startsWith('/demo/raspored') },
     { href: '/demo/zahtjevi', label: 'Zahtjevi', icon: Inbox, match: (p) => p.startsWith('/demo/zahtjevi'), count: pending },
@@ -79,7 +81,7 @@ export function OwnerShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => setMoreOpen(false), [pathname]);
 
-  const bottom = [nav[0]!, nav[1]!, nav[4]!];
+  const bottom = ['/demo', '/demo/uredaji', '/demo/nalozi'].map((h) => nav.find((n) => n.href === h)!);
   const moreActive = !bottom.some((b) => b.match(pathname));
 
   return (
@@ -172,7 +174,7 @@ export function OwnerShell({ children }: { children: React.ReactNode }) {
 
       <Modal open={moreOpen} onClose={() => setMoreOpen(false)} title="Više">
         <ul className="space-y-1">
-          {nav.slice(2).filter((n) => n.href !== '/demo/nalozi').map((item) => {
+          {nav.filter((n) => !bottom.includes(n)).map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.href}>

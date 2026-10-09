@@ -35,6 +35,37 @@ Otvorite `/demo`. Na vrhu je vodič **Pogledaj kako bi servis tekao**, koji prat
 
 Nakon toga vlasnički pregled pokazuje promijenjene brojke i aktivnosti (ko je i kako identifikovao koji uređaj), a uređaji imaju nove rokove. Kupac na kartici vidi „Servis obavljen”. `Počni ponovo` ili `Vrati početni primjer` vraća početno stanje.
 
+## Novi uređaj: ugradnja i QR naljepnica
+
+**Najavljena ugradnja (preporučeni put):**
+1. Vlasnik: `Uređaji` ili `Plan servisa` → `Nova ugradnja`. Bira postojeći objekat ili novog kupca, vrstu uređaja, interval (DEMO postavka), servisera i termin.
+2. Uređaj odmah dobija oznaku (npr. KL-017) i status „Ugradnja planirana”. Vlasnik štampa QR naljepnicu (`Štampaj naljepnicu za paket`) koja ide uz uređaj.
+3. Serviser: nalog „Ugradnja” → `Stigao sam` → zalijepi naljepnicu i skenira je.
+   - Kratka lista: ugrađen i pušten u rad, naljepnica zalijepljena i skenirana, kupac upoznat, dokumentacija predata.
+   - Serijski broj je opcionalan.
+4. `Završi demo nalog` → uređaj je aktivan, a **prvi servis je automatski u planu** (datum ugradnje + interval). Izvještaj je „Zapisnik o ugradnji”.
+
+**Nenajavljen uređaj na objektu (rezervni komplet):**
+1. Vlasnik unaprijed štampa list **praznih naljepnica** (`/demo/naljepnice`, kodovi N-0001…) i daje ih serviserima.
+2. Na objektu: `Novi uređaj na objektu (prazna naljepnica)` → serviser zalijepi i skenira praznu naljepnicu → nekoliko polja (upravo ugrađen ili postojeći uređaj, vrsta, naziv, opcionalno model i serijski broj, interval) → `Dodaj uređaj i nastavi`.
+3. Naljepnica se trajno veže za uređaj; kupac koji je skenira dobija stranicu tog uređaja. Prazna, nepovezana naljepnica kupcu pokazuje da još nije povezana. Kod koji nije iz kompleta firme se odbija.
+
+## Plan servisa i prijedlog termina kupcu
+
+1. `Plan servisa` prikazuje rokove koji su prošli ili ističu u narednih 30 dana a nemaju termin, zatim šta je već ugovoreno, odgovore kupaca i planirane ugradnje.
+2. `Pošalji prijedlog termina` (i na kartici uređaja i u „Potrebna pažnja”):
+   - ostali uređaji na objektu mogu u isti termin;
+   - kanal je e-mail ili SMS;
+   - sistem predloži 3 slobodna termina (radni dani, bez preklapanja s nalozima; mogu se promijeniti);
+   - prikaže se tekst poruke s oznakom **PRIMJER — NIJE POSLANO**.
+3. `Otvori link iz poruke (kako kupac vidi)`. Kupac može:
+   - **odabrati termin** → u ovom tabu odmah nastaje radni nalog kod vlasnika i servisera;
+   - **predložiti drugi termin** → obrazac za zakazivanje;
+   - **reći „Ne želim servis sada”** → prije odluke čita kratko, provjerljivo objašnjenje (preporuka proizvođača i uputstvo uređaja, mogući neprimijećeni problemi, manja efikasnost, garantni list), bira razlog (npr. „Podsjetite me za mjesec dana”) i potvrđuje da je pročitao.
+4. Vlasnik u `Plan servisa` → „Odgovori kupaca” vidi: čeka odgovor / odabrao termin (s nalogom) / odbio (s razlogom) / traži kasniji podsjetnik.
+
+U primjeru već postoji poslan prijedlog **PRJ-001** za TP-002: `/demo/kupac/TP-002?prijedlog=PRJ-001`.
+
 ## Šta serviser zaista mora unijeti
 
 | Situacija | Unos |
@@ -86,7 +117,7 @@ To su predviđene mogućnosti, ne funkcije koje su već aktivne.
 ## Izmišljeni podaci u primjeru
 
 - Firma: **Primjer Klima d.o.o. — demo firma**.
-- 6 kupaca, 8 objekata, 24 uređaja (16 klima, 8 toplotnih pumpi), 2 servisera.
+- 6 kupaca, 8 objekata, 24 uređaja (16 klima, 8 toplotnih pumpi), 2 servisera, 12 praznih naljepnica (N-0001…N-0012), 2 prijedloga termina (jedan čeka odgovor, jedan prihvaćen).
 - Objekti s više uređaja:
   - *Demo kuća Tuzla*: TP-001, KL-012, KL-015;
   - *Demo poslovni prostor*: 4 uređaja;

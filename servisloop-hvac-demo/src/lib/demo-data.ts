@@ -22,7 +22,7 @@ import type {
   WorkOrder,
 } from './types';
 
-export const DEMO_STATE_VERSION = 4;
+export const DEMO_STATE_VERSION = 5;
 
 /** Uređaj na kojem se vodi vodič kroz demo. */
 export const GUIDE_DEVICE_ID = 'TP-001';
@@ -141,6 +141,8 @@ function buildDevices(today: CivilDate): Device[] {
       nextServiceOn,
       note: s.note ?? '',
       history: [],
+      status: 'aktivan' as const,
+      label: null,
     };
   });
 }
@@ -161,6 +163,18 @@ interface OrderSeed extends Partial<Omit<WorkOrder, 'items'>> {
   devices: string[];
   /** Za završene primjere: popunjene kontrolne liste po uređaju. */
   filled?: Record<string, { checklist: ChecklistEntry[]; note?: string }>;
+}
+
+/** N-ti radni dan (pon–pet) nakon datuma. */
+export function nextWorkday(from: CivilDate, n: number): CivilDate {
+  let d = from;
+  let left = n;
+  while (left > 0) {
+    d = addDays(d, 1);
+    const wd = new Date(`${d}T12:00:00Z`).getUTCDay();
+    if (wd !== 0 && wd !== 6) left -= 1;
+  }
+  return d;
 }
 
 function itemFor(device: Device, filled?: { checklist: ChecklistEntry[]; note?: string }, at?: number): OrderItem {
@@ -283,10 +297,10 @@ export function createInitialState(today: CivilDate, now: number = Date.now()): 
     mk({ id: 'NAL-0111', devices: ['KL-002', 'KL-001'], date: today, start: '11:00', technicianId: 't1', durationMin: 90, reason: 'Redovni servis KL-002 (interval 6 mjeseci, DEMO) i pregled KL-001 u istoj posjeti.' }),
     mk({ id: 'NAL-0112', devices: ['KL-008', 'KL-007'], date: today, start: '14:00', technicianId: 't1', durationMin: 90, reason: 'Redovni servis dva uređaja u depandansi (jedan je zakasnio).' }),
     mk({ id: 'NAL-0113', devices: ['KL-010'], date: today, start: '13:00', technicianId: 't2', durationMin: 60 }),
-    mk({ id: 'NAL-0114', devices: ['TP-007'], date: addDays(today, 2), start: '10:00', technicianId: 't1' }),
-    mk({ id: 'NAL-0115', devices: ['KL-006'], date: addDays(today, 3), start: '09:00', technicianId: 't2', requestId: 'ZHT-030', durationMin: 60 }),
-    mk({ id: 'NAL-0116', devices: ['KL-014', 'KL-013'], date: addDays(today, 4), start: '12:00', technicianId: null, durationMin: 90 }),
-    mk({ id: 'NAL-0117', devices: ['KL-005'], date: addDays(today, 5), start: '10:00', technicianId: 't2', status: 'otkazan', reason: 'Redovni servis — kupac je zamolio novi termin (primjer).' }),
+    mk({ id: 'NAL-0114', devices: ['TP-007'], date: nextWorkday(today, 1), start: '10:00', technicianId: 't1' }),
+    mk({ id: 'NAL-0115', devices: ['KL-006'], date: nextWorkday(today, 2), start: '09:00', technicianId: 't2', requestId: 'ZHT-030', durationMin: 60 }),
+    mk({ id: 'NAL-0116', devices: ['KL-014', 'KL-013'], date: nextWorkday(today, 3), start: '12:00', technicianId: null, durationMin: 90 }),
+    mk({ id: 'NAL-0117', devices: ['KL-005'], date: nextWorkday(today, 4), start: '10:00', technicianId: 't2', status: 'otkazan', reason: 'Redovni servis — kupac je zamolio novi termin (primjer).' }),
   ];
 
   const historyFor: Record<string, Device['history']> = {
@@ -410,7 +424,47 @@ export function createInitialState(today: CivilDate, now: number = Date.now()): 
     requests,
     workOrders,
     activity,
+    proposals: [
+      {
+        id: 'PRJ-001',
+        locationId: 'l5',
+        deviceIds: ['TP-002'],
+        dueOn: nextOf('TP-002') ?? today,
+        channel: 'email',
+        slots: [
+          { date: nextWorkday(today, 2), start: '13:00', technicianId: 't2' },
+          { date: nextWorkday(today, 3), start: '09:00', technicianId: 't2' },
+          { date: nextWorkday(today, 5), start: '09:00', technicianId: 't1' },
+        ],
+        durationMin: 90,
+        status: 'poslan',
+        chosen: null,
+        reason: '',
+        sentAt: now - 26 * hour,
+        respondedAt: null,
+        workOrderId: null,
+      },
+      {
+        id: 'PRJ-002',
+        locationId: 'l7',
+        deviceIds: ['TP-007'],
+        dueOn: nextOf('TP-007') ?? today,
+        channel: 'sms',
+        slots: [
+          { date: nextWorkday(today, 1), start: '10:00', technicianId: 't1' },
+          { date: nextWorkday(today, 4), start: '13:00', technicianId: 't1' },
+        ],
+        durationMin: 90,
+        status: 'prihvacen',
+        chosen: 0,
+        reason: '',
+        sentAt: now - 4 * 24 * hour,
+        respondedAt: now - 3 * 24 * hour,
+        workOrderId: 'NAL-0114',
+      },
+    ],
+    labels: Array.from({ length: 12 }, (_, i) => ({ code: `N-${String(i + 1).padStart(4, '0')}`, deviceId: null })),
     guide: { visitedDevice: false, visitedCustomer: false, requestId: null, viewedReport: false, dismissed: false },
-    counters: { request: 0, workOrder: 117, device: 0 },
+    counters: { request: 0, workOrder: 117, device: 0, proposal: 2, customer: 6 },
   };
 }

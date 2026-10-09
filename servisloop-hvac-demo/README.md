@@ -5,7 +5,9 @@
 - stranicu koju kupac dobije skeniranjem QR koda (prijava kvara jednim dodirom);
 - raspored i dodjelu servisera (jedna posjeta za sve uređaje na objektu);
 - mobilni radni nalog u kojem serviser **skenira QR svakog uređaja prije unosa**;
-- primjer servisnog izvještaja.
+- primjer servisnog izvještaja;
+- **ugradnju novog uređaja** (QR naljepnica uz paket ili prazna naljepnica iz kompleta, prvi servis automatski u planu);
+- **plan servisa** i **prijedlog termina kupcu** (e-mail ili SMS — simulacija), na koji kupac odgovara izborom termina ili odbijanjem uz jasno objašnjenje.
 
 Ovo nije produkcijski servisni sistem. Svi podaci su izmišljeni, a zahtjevi, termini, servisi i poruke su simulacija.
 
@@ -17,6 +19,7 @@ Ovo nije produkcijski servisni sistem. Svi podaci su izmišljeni, a zahtjevi, te
 | Pretraga i filteri (uređaji, nalozi, zahtjevi, raspored) | Potvrda/odbijanje zahtjeva, dodjela servisera, kolizija termina | Korisnički računi, prijava i dozvole |
 | Obrasci s validacijom, lokalni pregled fotografije | Pokretanje i završetak naloga, kontrolna lista | Stvarne obavijesti (e-mail/SMS/druge kanale po dogovoru) |
 | Pravi QR kod (biblioteka `qrcode`): link, PNG i SVG preuzimanje, naljepnica za štampu | Primjeri poruka i podsjetnika (označeni „PRIMJER — NIJE POSLANO”) | Servisni obrasci i intervali koje potvrdi firma |
+| Ugradnja: rezervisana oznaka i naljepnica za paket, prazne naljepnice, povezivanje na objektu, automatski prvi servis | Prijedlog termina e-mailom/SMS-om i odgovor kupca (odabir, drugi termin, odbijanje/odgoda) | Stvarno slanje poruka, automatski prijedlog npr. 14 dana prije roka, štampa na printeru naljepnica |
 | Skener servisera: prava kamera telefona (`getUserMedia` + `jsqr`, HTTPS), provjera da je uređaj na nalogu, ručni unos oznake | Demo naljepnice (dodir = skeniranje), identifikacija i obrada uređaja u posjeti | Sinhronizacija telefona servisera i kancelarije |
 | Primjer izvještaja kao A4 HTML za štampu (`Štampaj primjer izvještaja` → „Sačuvaj kao PDF”) | Datumi i rokovi (relativni na dan otvaranja) | Finalni naziv, logo, kontakt i izgled firme |
 
@@ -28,6 +31,15 @@ Demo nema bazu, server upis, prijavu, slanje e-maila/SMS-a/Vibera, naplatu ni cr
 - Stanje se drži samo u tom tabu (sessionStorage). Preživi refresh, a nestaje zatvaranjem taba. Novi tab, drugi preglednik ili telefon počinju od početnog primjera.
 - `Vrati početni primjer` (u bočnom meniju, meniju „Više” i u vodiču kao „Počni ponovo”) vraća izmišljene podatke. Datumi se tada računaju od tog dana (Europe/Sarajevo).
 - QR na fizičkom telefonu otvara pokaznu karticu uređaja. Ništa se **ne sinhronizuje** između telefona i računara.
+
+## Kako novi uređaj dobija QR naljepnicu
+
+| Situacija | Ko štampa | Šta radi serviser |
+| --- | --- | --- |
+| Najavljena ugradnja | Vlasnik pri planiranju ugradnje štampa naljepnicu s oznakom uređaja (ide u paket) | Zalijepi je, skenira, potvrdi kratku listu ugradnje |
+| Nenajavljen uređaj na objektu | Vlasnik unaprijed štampa list praznih naljepnica (N-0001…) | Zalijepi praznu, skenira, upiše nekoliko polja |
+
+U oba slučaja rok prvog servisa računa se automatski (datum ugradnje + interval, DEMO postavka) i uređaj se pojavljuje u **Plan servisa**.
 
 ## Kako radi identifikacija uređaja na objektu
 
@@ -115,6 +127,8 @@ src/
     demo/kupac/[deviceId]/           stranica kupca iz QR-a (na računaru u okviru telefona, s objašnjenjem)
     demo/(dokument)/izvjestaji/[id]  A4 izvještaj za štampu
     demo/(dokument)/naljepnica/[id]  QR naljepnica za štampu
+    demo/(dokument)/naljepnice       list praznih naljepnica (rezervni komplet)
+    demo/(vlasnik)/plan              plan servisa, prijedlozi termina, ugradnje
   components/                        UI, shellovi, vodič, QR panel, skener (scan-dialog), nalog servisera, modali
   config/brand.ts                    centralna konfiguracija
   lib/                               demo podaci, store, datumi, QR, izvedene vrijednosti

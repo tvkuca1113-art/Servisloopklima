@@ -1,8 +1,9 @@
 'use client';
 
+import { ProposalModal } from '@/components/proposal-modal';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Bell, CalendarPlus, Pencil } from 'lucide-react';
+import { Bell, CalendarPlus, Pencil, Printer, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { AssignModal, type AssignTarget } from '@/components/assign-modal';
@@ -31,6 +32,7 @@ export default function DeviceDetail() {
   const L = lookup(state);
   const device = L.device(deviceId);
   const [editing, setEditing] = useState(false);
+  const [proposalFor, setProposalFor] = useState<string | null>(null);
   const [assign, setAssign] = useState<AssignTarget | null>(null);
   const today = state.anchor;
 
@@ -67,12 +69,31 @@ export default function DeviceDetail() {
             <Button variant="secondary" onClick={() => setEditing(true)}>
               <Pencil aria-hidden /> Uredi
             </Button>
-            <Button onClick={() => setAssign({ mode: 'device', deviceId: device.id })}>
-              <CalendarPlus aria-hidden /> Planiraj demo servis
-            </Button>
+            {device.status === 'ugradnja' ? null : (
+              <>
+                <Button variant="secondary" onClick={() => setProposalFor(device.id)}>
+                  <Send aria-hidden /> Prijedlog termina kupcu
+                </Button>
+                <Button onClick={() => setAssign({ mode: 'device', deviceId: device.id })}>
+                  <CalendarPlus aria-hidden /> Planiraj demo servis
+                </Button>
+              </>
+            )}
           </>
         }
       />
+
+      {device.status === 'ugradnja' ? (
+        <div className="mb-5 flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary-soft p-4 sm:flex-row sm:items-center" data-testid="install-notice">
+          <p className="flex-1 text-sm">
+            <span className="font-semibold">Ugradnja planirana.</span> Odštampajte QR naljepnicu i pošaljite je uz uređaj. Serviser je na ugradnji zalijepi i skenira; tada se uređaj aktivira i prvi servis
+            ulazi u plan.
+          </p>
+          <Link href={`/demo/naljepnica/${device.id}`} className={buttonClass('primary', 'sm')}>
+            <Printer aria-hidden /> Štampaj naljepnicu za paket
+          </Link>
+        </div>
+      ) : null}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         <Card className="lg:col-start-1" aria-labelledby="rok">
@@ -115,6 +136,7 @@ export default function DeviceDetail() {
             </Info>
             <Info label="Ugrađen">{formatLong(device.installedOn)}</Info>
             <Info label="Model">{device.model}</Info>
+            {device.label ? <Info label="QR naljepnica iz kompleta">{device.label}</Info> : null}
             <Info label="Serijski broj">
               <span className="font-mono text-sm">{device.serial}</span>
             </Info>
@@ -198,6 +220,7 @@ export default function DeviceDetail() {
         </Card>
       </div>
 
+      <ProposalModal deviceId={proposalFor} onClose={() => setProposalFor(null)} />
       <DeviceFormModal open={editing} onClose={() => setEditing(false)} device={device} />
       <AssignModal target={assign} onClose={() => setAssign(null)} />
     </>

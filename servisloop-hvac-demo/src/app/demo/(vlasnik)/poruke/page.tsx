@@ -10,6 +10,8 @@ import { cn } from '@/lib/cn';
 import { addDays, formatLong } from '@/lib/dates';
 import { deviceTitle, lookup } from '@/lib/derive';
 import { GUIDE_DEVICE_ID } from '@/lib/demo-data';
+import { proposalMessage } from '@/lib/proposal-text';
+import { siteOrigin } from '@/lib/qr';
 import { useDemo } from '@/lib/store';
 
 interface Example {
@@ -37,6 +39,11 @@ function MessagesInner() {
     if (focus) document.getElementById(`poruka-${focus}`)?.scrollIntoView({ block: 'center' });
   }, [focus]);
 
+  const seed = state.proposals.find((p) => p.id === 'PRJ-001');
+  const proposalDemo = seed
+    ? proposalMessage(state, seed, `${siteOrigin()}/demo/kupac/TP-002?prijedlog=PRJ-001`)
+    : { subject: 'Redovni servis — prijedlog termina', body: 'Primjer poruke s prijedlogom termina.' };
+
   const examples: Example[] = [
     {
       id: 'zahtjev',
@@ -59,6 +66,14 @@ function MessagesInner() {
       subject: `Servis završen — ${device.id}`,
       body: `Poštovani,\n\nservis uređaja ${device.name} je završen. U prilogu je servisni izvještaj. Sljedeći servis je planiran za ${formatLong(device.nextServiceOn)}.\n\n${brand.companyName}`,
       link: { href: '/demo/izvjestaji', label: 'Primjeri izvještaja' },
+    },
+    {
+      id: 'prijedlog',
+      title: 'Prijedlog termina servisa',
+      when: 'Kada se približi rok (vlasnik šalje iz „Plan servisa”)',
+      subject: proposalDemo.subject,
+      body: proposalDemo.body,
+      link: { href: '/demo/kupac/TP-002?prijedlog=PRJ-001', label: 'Kako kupac bira termin ili odbija' },
     },
     {
       id: 'podsjetnik',

@@ -24,6 +24,21 @@ const COMMON_END = [
   { id: 'rezultat', label: 'Rezultat i preporuka', hint: 'Kratak zaključak za kupca.' },
 ];
 
+/**
+ * Pokazni obrazac za ugradnju: bilježi da je posao predat i da je naljepnica na mjestu.
+ * Tehnički postupak ugradnje određuju uputstvo proizvođača i firma — nije dio ovog obrasca.
+ */
+const INSTALL = [
+  { id: 'ugradjen', label: 'Uređaj ugrađen i pušten u rad', hint: 'Prema uputstvu proizvođača i internom postupku firme.' },
+  { id: 'naljepnica', label: 'QR naljepnica zalijepljena i skenirana', hint: 'Na vidljivo mjesto koje kupac lako pronađe.' },
+  { id: 'kupac', label: 'Kupac upoznat s osnovnim radom uređaja', hint: 'Uključivanje, upravljač i kome se javiti.' },
+  { id: 'dokumentacija', label: 'Dokumentacija proizvođača predata kupcu', hint: 'Uputstvo i garantni list.' },
+];
+
+export function installChecklist(): ChecklistEntry[] {
+  return INSTALL.map((i) => ({ ...i, answer: null, note: '' }));
+}
+
 export function checklistFor(kind: DeviceKind): ChecklistEntry[] {
   const items = [...COMMON_START, ...(kind === 'klima' ? KLIMA : PUMPA), ...COMMON_END];
   return items.map((i) => ({ ...i, answer: null, note: '' }));
@@ -66,5 +81,6 @@ export function deviceIdFromQr(text: string): string | null {
   const m = t.match(/\/demo\/kupac\/([^/?#\s]+)/i);
   const raw = m ? decodeURIComponent(m[1]!) : t;
   const id = raw.toUpperCase().replace(/\s+/g, '');
+  if (/^N-?\d{4}$/.test(id)) return id.includes('-') ? id : `N-${id.slice(1)}`;
   return /^(TP|KL)-?\d{3}$/.test(id) ? (id.includes('-') ? id : `${id.slice(0, 2)}-${id.slice(2)}`) : null;
 }

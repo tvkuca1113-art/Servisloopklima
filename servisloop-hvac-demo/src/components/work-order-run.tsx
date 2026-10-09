@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, CheckCircle2, ChevronRight, FileText, Lock, MapPin, Play, QrCode, ScanLine, Trash2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronRight, FileText, Lock, MapPin, PackagePlus, Play, QrCode, ScanLine, Trash2 } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 
 import { ANSWER_LABEL, checklistGaps, markAllOk } from '@/lib/checklists';
@@ -10,6 +10,7 @@ import { endTime, lookup } from '@/lib/derive';
 import { useDemo } from '@/lib/store';
 import type { CheckAnswer, OrderItem, WorkOrder } from '@/lib/types';
 
+import { NewDeviceModal } from './new-device-modal';
 import { PhotoPicker } from './photo-picker';
 import { ScanDialog } from './scan-dialog';
 import { OrderBadge } from './status';
@@ -73,12 +74,14 @@ export function WorkOrderHeader({ order, compact = false }: { order: WorkOrder; 
 }
 
 export function WorkOrderRun({ order }: { order: WorkOrder }) {
-  const { state, updateOrder, updateItem, completeOrder } = useDemo();
+  const { state, updateOrder, updateItem, completeOrder, addOnSiteDevice, updateDevice } = useDemo();
   const toast = useToast();
   const uid = useId();
   const L = lookup(state);
   const [active, setActive] = useState<string | null>(null);
   const [scanFor, setScanFor] = useState<string | null | undefined>(undefined);
+  const [scanMode, setScanMode] = useState<'uredaj' | 'nova'>('uredaj');
+  const [newLabel, setNewLabel] = useState<string | null>(null);
   const [showItemGaps, setShowItemGaps] = useState(false);
   const [showFinishGaps, setShowFinishGaps] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -127,6 +130,14 @@ export function WorkOrderRun({ order }: { order: WorkOrder }) {
           <p className="mt-1 text-sm text-ink-2">
             Obrađeno uređaja: {doneCount} od {order.items.length} · trajanje {order.timeSpentMin ?? '—'} min
           </p>
+          {order.items
+            .map((i) => L.device(i.deviceId))
+            .filter((d) => d && d.history[0]?.workOrderId === order.id && d.history[0]?.title === 'Ugradnja')
+            .map((d) => (
+              <p key={d!.id} className="mt-2 text-sm font-semibold text-ok" data-testid={`first-service-${d!.id}`}>
+                {d!.id} je aktivan · prvi servis automatski u planu: {formatLong(d!.nextServiceOn)}
+              </p>
+            ))}
           <ButtonLink href={`/demo/izvjestaji/${order.id}`} size="lg" className="mt-4 w-full sm:w-auto">
             <FileText aria-hidden /> Pogledaj primjer izvještaja
           </ButtonLink>
@@ -144,6 +155,11 @@ export function WorkOrderRun({ order }: { order: WorkOrder }) {
       <div className="space-y-4 pb-24">
         <WorkOrderHeader order={order} />
         <DeviceList order={order} onOpen={() => undefined} readOnly />
+        {order.category === 'Ugradnja' ? (
+          <Notice tone="warn" title="Ugradnja: naljepnica je u paketu">
+            Nakon ugradnje zalijepite QR naljepnicu iz paketa na vidljivo mjesto na uređaju i skenirajte je. Tek tada se otvara unos.
+          </Notice>
+        ) : null}
         <Notice tone="info" title="Na objektu: skenirajte svaki uređaj">
           Prije unosa serviser skenira QR naljepnicu na uređaju. Tako se podaci ne mogu upisati na pogrešan uređaj, a izvještaj bilježi kako je uređaj identifikovan.
         </Notice>
@@ -198,10 +214,26 @@ export function WorkOrderRun({ order }: { order: WorkOrder }) {
           <h2 className="mt-1 text-xl font-bold">
             {d?.id} · {d?.name}
           </h2>
+          {d?.status === 'ugradnja' ? <p className="text-sm font-semibold text-primary-hover">Ugradnja novog uređaja</p> : null}
           <p className="text-sm text-ink-2">
             {d?.typeLabel} · <span className="font-mono">{d?.serial}</span>
           </p>
         </div>
+
+        {d?.status === 'ugradnja' ? (
+          <Card className="p-4">
+            <Field label="Serijski broj (s natpisne pločice)" htmlFor={`${uid}-serial`} hint="Opcionalno — upisuje se jednom, pri ugradnji.">
+              <input
+                id={`${uid}-serial`}
+                value={d.serial.startsWith('upisuje') ? '' : d.serial}
+                onChange={(e) => updateDevice(d.id, { serial: e.target.value || 'nije upisan' })}
+                className={inputClass()}
+                maxLength={60}
+                autoCapitalize="characters"
+              />
+            </Field>
+          </Card>
+        ) : null}
 
         <Card className="p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -344,7 +376,26 @@ export function WorkOrderRun({ order }: { order: WorkOrder }) {
         {pending.length ? <p className="mt-2 text-[13px] text-ink-2">Priđite uređaju i skenirajte njegovu QR naljepnicu. Unos se otvara samo za skenirani uređaj.</p> : null}
       </div>
 
-      <DeviceList order={order} onOpen={(id, identifiedAlready) => (identifiedAlready ? setActive(id) : setScanFor(id))} />
+      <DeviceList
+        order={order}
+        onOpen={(id, identifiedAlready) => {
+          if (identifiedAlready) setActive(id);
+          else {
+            setScanMode('uredaj');
+            setScanFor(id);
+          }
+        }}
+      />
+      <Button
+        variant="secondary"
+        className="w-full"
+        onClick={() => {
+          setScanMode('nova');
+          setScanFor(null);
+        }}
+      >
+        <PackagePlus aria-hidden /> Novi uređaj na objektu (prazna naljepnica)
+      </Button>
 
       <Card className="space-y-4 p-4" aria-labelledby={`${uid}-fin`}>
         <h2 id={`${uid}-fin`} className="text-base font-semibold">
@@ -407,7 +458,14 @@ export function WorkOrderRun({ order }: { order: WorkOrder }) {
       <StickyBar>
         {pending.length ? (
           <div className="flex gap-2">
-            <Button size="lg" className="flex-1" onClick={() => setScanFor(null)}>
+            <Button
+              size="lg"
+              className="flex-1"
+              onClick={() => {
+                setScanMode('uredaj');
+                setScanFor(null);
+              }}
+            >
               <ScanLine aria-hidden /> Skeniraj QR uređaja
             </Button>
             <Button size="lg" variant="secondary" onClick={() => finish(false)} className="shrink-0 px-3" aria-label="Završi posjetu">
@@ -421,7 +479,29 @@ export function WorkOrderRun({ order }: { order: WorkOrder }) {
         )}
       </StickyBar>
 
-      <ScanDialog open={scanFor !== undefined} onClose={() => setScanFor(undefined)} order={order} expected={scanFor ?? null} onIdentified={identified} />
+      <ScanDialog
+        open={scanFor !== undefined}
+        onClose={() => setScanFor(undefined)}
+        order={order}
+        expected={scanFor ?? null}
+        mode={scanMode}
+        onIdentified={identified}
+        onBlankLabel={(code) => {
+          setScanFor(undefined);
+          setNewLabel(code);
+        }}
+      />
+      <NewDeviceModal
+        labelCode={newLabel}
+        locationName={L.location(order.locationId)?.name ?? ''}
+        onClose={() => setNewLabel(null)}
+        onSave={(input) => {
+          const id = addOnSiteDevice(order.id, newLabel!, input);
+          setNewLabel(null);
+          setActive(id);
+          toast({ title: `Uređaj ${id} dodan i povezan s naljepnicom ${newLabel}.`, body: 'Prvi servis ulazi u plan automatski. ' + DEMO_CHANGE });
+        }}
+      />
     </div>
   );
 }

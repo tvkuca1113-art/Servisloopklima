@@ -22,7 +22,7 @@ Stanje: 9. oktobar 2026. Obim: **vizuelni frontend demo s označenom simulacijom
 - [x] Izvještaj: A4 HTML + print CSS, dugme `Štampaj primjer izvještaja`, DEMO u headeru i footeru.
 - [x] Primjeri poruka (4) s „PRIMJER — NIJE POSLANO” i blok „Šta bi se povezalo u vašoj verziji?”.
 - [x] Pristupačnost: trajni labeli, greške uz polja (`aria-invalid`/`aria-describedby`), focus ring, native `<dialog>` s povratkom fokusa, skip link, reduced-motion, statusi s tekstom i ikonom, touch ciljevi ≥44 px, input 16 px na mobilnom.
-- [x] Testovi: 11 unit (Vitest), 16 E2E (Playwright, uključujući kameru s emuliranim videom). Lint, typecheck i build prolaze.
+- [x] Testovi: 14 unit (Vitest), 19 E2E (Playwright, uključujući kameru s emuliranim videom). Lint, typecheck i build prolaze.
 - [x] Predaja: README, DEMO-SCENARIO.md, TEST-REPORT.md, `screenshots/` (33), `primjeri/` (QR PNG/SVG, 3 PDF-a).
 
 ## Drugi krug (po povratnoj informaciji naručioca)
@@ -48,6 +48,30 @@ Stanje: 9. oktobar 2026. Obim: **vizuelni frontend demo s označenom simulacijom
 - [x] Vlasnik vidi simptom i „Uređaj ne radi”; hitne prijave su prve.
 - [x] Tri pregledna prolaza i ispravke (vidi TEST-REPORT.md).
 
+## Treći krug (ugradnja, plan servisa, prijedlog termina)
+
+- [x] Model:
+  - `Device.status` (`aktivan` / `ugradnja`) i `Device.label`;
+  - `BlankLabel[]` (N-0001…N-0012);
+  - `Proposal[]` (slotovi, kanal, status, razlog, nalog);
+  - kategorija naloga `Ugradnja`; `DEMO_STATE_VERSION = 5`.
+- [x] Vlasnik: `Nova ugradnja` (`install-modal.tsx`) — postojeći objekat ili novi kupac/objekat; rezervisana oznaka; nalog „Ugradnja”; naljepnica za paket.
+- [x] Serviser:
+  - skenira naljepnicu iz paketa; lista za ugradnju (`installChecklist`); serijski broj;
+  - `Novi uređaj na objektu` sa praznom naljepnicom (`new-device-modal.tsx`);
+  - skener prepoznaje prazne i tuđe kodove.
+- [x] Završetak ugradnje aktivira uređaj i postavlja prvi servis (datum + interval); izvještaj „Zapisnik o ugradnji”.
+- [x] `Plan servisa` (`/demo/plan`): za ugovaranje, odgovori kupaca, ugovoreno, planirane ugradnje; stavka u navigaciji.
+- [x] Prijedlog termina (`proposal-modal.tsx`, `lib/proposal-text.ts`):
+  - 3 slobodna termina u radne dane, provjera kolizije;
+  - tekst poruke (e-mail/SMS) s „PRIMJER — NIJE POSLANO”.
+- [x] Kupac (`customer-proposal.tsx`):
+  - izbor termina → nalog; drugi termin;
+  - odbijanje/odgoda uz provjerljivo objašnjenje (bez brojki i bez tvrdnje da garancija prestaje) i potvrdu da je pročitano.
+- [x] `/demo/kupac/N-xxxx`: povezana naljepnica vodi na uređaj, nepovezana objašnjava stanje.
+- [x] Seed: budući nalozi i termini prijedloga samo radnim danima i bez kolizija (unit test).
+- [x] Testovi: 14 unit, 19 E2E (+3 za ugradnju, tuđi kod i prijedlog termina; rute `/demo/plan`, `/demo/naljepnice`, `/demo/kupac/N-0001`, link prijedloga).
+
 ## Otvoreno
 
 - [ ] **Provjera objavljene verzije.** Naručilac je objavio demo (`servisloop-hvac-demo.vercel.app`, prema screenshotu). Iz ovog okruženja adresa nije dostupna (proxy; Vercel 403), pa provjeru nakon novog pusha treba uraditi ručno:
@@ -58,6 +82,7 @@ Stanje: 9. oktobar 2026. Obim: **vizuelni frontend demo s označenom simulacijom
 - [ ] Fizičko skeniranje QR-a telefonom (kupac i skener servisera) i sa štampane naljepnice. Skener je provjeren samo emuliranom kamerom.
 - [ ] Provjera na stvarnom iOS Safari / Android Chrome i čitačem ekrana.
 - [ ] Opcionalno: stvarni kontakt autora u `brand.ts` (samo ako ga naručilac dostavi).
+- [ ] Tekst o posljedicama odgađanja servisa (`DECLINE_INFO`) firma treba potvrditi ili prilagoditi prema proizvođačima koje ugrađuje.
 
 ## Namjerno izvan obima
 

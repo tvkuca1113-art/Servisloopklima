@@ -7,7 +7,7 @@ import { buttonClass } from '@/components/button-class';
 import { brand } from '@/config/brand';
 
 const BENEFITS = [
-  { icon: Thermometer, title: 'Uređaji na jednom mjestu', text: 'Historija i naredni servis za svaku klimu i toplotnu pumpu.' },
+  { icon: Thermometer, title: 'Od ugradnje do servisa', text: 'Novi uređaj dobija QR naljepnicu, a prvi servis ulazi u plan automatski — ništa se ne propušta.' },
   { icon: QrCode, title: 'QR na uređaju', text: 'Primjer zakazivanja i prijave kvara bez prijave i aplikacije.' },
   { icon: ClipboardCheck, title: 'Jasan radni nalog', text: 'Serviser na objektu skenira svaki uređaj — nema zabune ni unosa na pogrešan uređaj.' },
 ];
@@ -144,9 +144,9 @@ export default function Landing() {
               <h3 className="font-semibold text-demo">Simulacija</h3>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
                 <li>Slanje zahtjeva i prijave kvara</li>
-                <li>Raspored i dodjela servisera</li>
+                <li>Raspored, dodjela servisera i ugradnja novih uređaja</li>
                 <li>Obavljeni servis i kontrolna lista</li>
-                <li>Poruke i podsjetnici kupcima</li>
+                <li>Poruke, podsjetnici i prijedlog termina kupcu</li>
               </ul>
             </div>
             <div className="rounded-2xl border border-line bg-bg p-5">

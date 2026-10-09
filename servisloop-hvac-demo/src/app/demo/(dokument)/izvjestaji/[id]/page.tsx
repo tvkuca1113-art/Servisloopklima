@@ -79,16 +79,16 @@ export default function ReportPage() {
             <p className="text-[17px] font-bold">{brand.companyName}</p>
             <p className="text-[13px] text-ink-2">demo firma · {brand.productName}</p>
           </div>
-          <p className="rounded-md border-2 border-demo px-2.5 py-1 text-[12px] font-bold tracking-wide text-demo uppercase">DEMO — primjer servisnog izvještaja</p>
+          <p className="rounded-md border-2 border-demo px-2.5 py-1 text-[12px] font-bold tracking-wide text-demo uppercase">{order.category === 'Ugradnja' ? 'DEMO — primjer zapisnika o ugradnji' : 'DEMO — primjer servisnog izvještaja'}</p>
         </header>
 
-        <h1 className="mt-5 text-[22px] font-bold">Servisni izvještaj</h1>
+        <h1 className="mt-5 text-[22px] font-bold">{order.category === 'Ugradnja' ? 'Zapisnik o ugradnji' : 'Servisni izvještaj'}</h1>
         <p className="text-[13px] text-ink-2">
           Broj: IZV-{order.id.replace('NAL-', '')} · Nalog {order.id} · {order.category}
         </p>
 
         <dl className="mt-5 grid gap-x-8 gap-y-3 sm:grid-cols-2 print:grid-cols-2">
-          <Row label="Datum servisa">{order.completedOn ? formatLong(order.completedOn) : '—'}</Row>
+          <Row label={order.category === 'Ugradnja' ? 'Datum ugradnje' : 'Datum servisa'}>{order.completedOn ? formatLong(order.completedOn) : '—'}</Row>
           <Row label="Serviser">{tech?.name ?? '—'}</Row>
           <Row label="Kupac">{cust?.name}</Row>
           <Row label="Lokacija">
@@ -178,7 +178,7 @@ export default function ReportPage() {
         <div className="print-avoid-break mt-6 rounded-lg border border-line bg-bg p-4">
           <p className="text-[11px] font-semibold tracking-wide text-ink-3 uppercase">Preporuka</p>
           <p className="mt-1 text-[14px] whitespace-pre-wrap">{order.recommendation || '—'}</p>
-          <p className="mt-3 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">Sljedeći servis (DEMO interval)</p>
+          <p className="mt-3 text-[11px] font-semibold tracking-wide text-ink-3 uppercase">{order.category === 'Ugradnja' ? 'Prvi servis — automatski u planu (DEMO interval)' : 'Sljedeći servis (DEMO interval)'}</p>
           <ul className="mt-1 space-y-0.5 text-[14px]">
             {order.items
               .filter((i) => i.done)

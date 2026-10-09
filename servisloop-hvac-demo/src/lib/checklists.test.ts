@@ -26,3 +26,10 @@ describe('„Sve uredno”', () => {
     expect(out.filter((i) => i.answer === 'uredno')).toHaveLength(list.length - 1);
   });
 });
+
+describe('prazne naljepnice', () => {
+  it('prepoznaje kod iz kompleta', () => {
+    expect(deviceIdFromQr('https://x.test/demo/kupac/N-0003')).toBe('N-0003');
+    expect(deviceIdFromQr('n0003')).toBe('N-0003');
+  });
+});

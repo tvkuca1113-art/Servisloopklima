@@ -1,8 +1,9 @@
 'use client';
 
+import { buttonClass } from '@/components/button-class';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { FileText, Smartphone, UserPlus } from 'lucide-react';
+import { FileText, Printer, Smartphone, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 
 import { AssignModal, type AssignTarget } from '@/components/assign-modal';
@@ -70,6 +71,19 @@ export default function OrderDetail() {
           </>
         }
       />
+
+      {order.category === 'Ugradnja' && isOpen(order) ? (
+        <div className="mb-5 flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary-soft p-4 sm:flex-row sm:items-center" data-testid="install-order-notice">
+          <p className="flex-1 text-sm">
+            <span className="font-semibold">Nalog za ugradnju.</span> QR naljepnica za {order.items.map((i) => i.deviceId).join(', ')} ide u paket s uređajem. Serviser je zalijepi i skenira na objektu.
+          </p>
+          {order.items.map((i) => (
+            <Link key={i.deviceId} href={`/demo/naljepnica/${i.deviceId}`} className={buttonClass('primary', 'sm')}>
+              <Printer aria-hidden /> Štampaj naljepnicu {i.deviceId}
+            </Link>
+          ))}
+        </div>
+      ) : null}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:items-start">
         <Card aria-labelledby="nalog-podaci">

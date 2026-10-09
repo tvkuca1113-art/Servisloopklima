@@ -60,7 +60,7 @@ test('pretraga i filteri uređaja odgovaraju demo podacima', async ({ page }) =>
 
 test('dodavanje i uređivanje demo uređaja s validacijom', async ({ page }) => {
   await page.goto('/demo/uredaji');
-  await page.getByRole('button', { name: 'Dodaj demo uređaj' }).click();
+  await page.getByRole('button', { name: 'Postojeći uređaj u evidenciju' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Dodaj u primjer' }).click();
   await expect(dialog.getByText('Unesite naziv uređaja (najmanje 3 znaka).')).toBeVisible();
@@ -101,7 +101,7 @@ test('primjeri poruka su označeni kao neposlani', async ({ page }) => {
   await page.goto('/demo/uredaji/TP-001');
   await page.getByRole('link', { name: 'Pogledaj primjer podsjetnika' }).click();
   await expect(page).toHaveURL(/primjer=podsjetnik/);
-  await expect(page.getByText('PRIMJER — NIJE POSLANO')).toHaveCount(4);
+  await expect(page.getByText('PRIMJER — NIJE POSLANO', { exact: true })).toHaveCount(5);
   await expect(page.getByText('Primjer poruke — nije poslano.')).toBeVisible();
   const body = (await page.locator('body').innerText()).toLowerCase();
   for (const forbidden of ['dostavljeno', 'trajno sačuvan', 'sve funkcije su aktivne', 'stvarno zakazan']) {

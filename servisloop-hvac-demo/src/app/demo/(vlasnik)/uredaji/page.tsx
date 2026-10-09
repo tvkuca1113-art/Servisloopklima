@@ -1,8 +1,10 @@
 'use client';
 
+import { buttonClass } from '@/components/button-class';
+import { InstallModal } from '@/components/install-modal';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Plus, Search } from 'lucide-react';
+import { PackagePlus, Plus, Search } from 'lucide-react';
 import { Suspense, useMemo, useState } from 'react';
 
 import { DeviceFormModal } from '@/components/device-form';
@@ -32,6 +34,7 @@ function DevicesInner() {
   const kind = (params.get('tip') ?? 'sve') as 'sve' | 'klima' | 'pumpa';
   const status = (params.get('status') ?? 'sve') as 'sve' | DueStatus;
   const [adding, setAdding] = useState(false);
+  const [installing, setInstalling] = useState(false);
 
   const setParam = (key: string, value: string) => {
     const p = new URLSearchParams(params.toString());
@@ -64,9 +67,17 @@ function DevicesInner() {
         title="Uređaji"
         subtitle={`${state.devices.length} uređaja u primjeru · ${klima} klima · ${pumpe} toplotnih pumpi`}
         actions={
-          <Button onClick={() => setAdding(true)}>
-            <Plus aria-hidden /> Dodaj demo uređaj
-          </Button>
+          <>
+            <Link href="/demo/naljepnice" className={buttonClass('ghost')}>
+              Prazne naljepnice
+            </Link>
+            <Button variant="secondary" onClick={() => setAdding(true)}>
+              <Plus aria-hidden /> Postojeći uređaj u evidenciju
+            </Button>
+            <Button onClick={() => setInstalling(true)}>
+              <PackagePlus aria-hidden /> Nova ugradnja
+            </Button>
+          </>
         }
       />
 
@@ -210,6 +221,7 @@ function DevicesInner() {
         </>
       )}
 
+      <InstallModal open={installing} onClose={() => setInstalling(false)} />
       <DeviceFormModal open={adding} onClose={() => setAdding(false)} onSaved={(id) => router.push(`/demo/uredaji/${id}`)} />
     </>
   );
